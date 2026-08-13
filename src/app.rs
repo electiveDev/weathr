@@ -12,7 +12,8 @@ use crate::weather::provider::WeatherProvider;
 use crate::weather::provider::met_office::{MetOfficeProvider, MetOfficeProviderConfig};
 use crate::weather::types::CelestialEvents;
 use crate::weather::{
-    OpenMeteoProvider, WeatherClient, WeatherCondition, WeatherData, WeatherLocation,
+    IconGlobalProvider, OpenMeteoProvider, WeatherClient, WeatherCondition, WeatherData,
+    WeatherLocation,
 };
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use serde::Deserialize;
@@ -213,6 +214,7 @@ impl App {
                 .unwrap_or(Provider::default());
 
             let provider: Arc<dyn WeatherProvider> = match wanted_provider {
+                Provider::IconGlobal => Arc::new(IconGlobalProvider::new()),
                 Provider::OpenMeteo => Arc::new(OpenMeteoProvider::new()),
                 Provider::MetOffice => {
                     let provider_config = {

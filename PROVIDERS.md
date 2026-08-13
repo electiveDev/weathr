@@ -1,22 +1,34 @@
 # weathr data providers
 
-How to use different providers & how to impl them
+How to use different providers & how to implement them
 
 ## Using Providers
-There are currently 2 available providers which are
-- OpenMeteo (default)
+
+There are currently 3 available providers:
+- IconGlobal (default): DWD's global ICON model through Open-Meteo
+- OpenMeteo: Open-Meteo's automatic model selection
 - MetOffice
 
-Currently the only way to change the provider is done via the config
+Currently the only way to change the provider is done via the config.
+
+### IconGlobal Provider
+
+The default provider requests `models=icon_global` from Open-Meteo's forecast API.
+This selects the DWD global ICON model worldwide, including locations in Germany.
+No API key is required.
+
+To make the default explicit in your config:
+```
+[provider.IconGlobal]
+```
 
 ### OpenMeteo Provider
-By default Open Meteo is used, to change the provider you must have a config
 
-If you want to force the use of this provider add to your config
+The existing Open-Meteo provider remains available as an explicit fallback. It uses
+Open-Meteo's automatic model selection rather than forcing a specific model:
 ```
 [provider.OpenMeteo]
 ```
-
 
 ### [MetOffice](metoffice.gov.uk) Provider
 This is the [UK Government Met Office](metoffice.gov.uk) weather provider

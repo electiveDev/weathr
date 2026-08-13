@@ -15,6 +15,8 @@ const OPEN_METEO_BASE_URL: &str = "https://api.open-meteo.com/v1/forecast";
 pub struct OpenMeteoProvider {
     client: reqwest::Client,
     base_url: String,
+    model: Option<&'static str>,
+    attribution: &'static str,
 }
 
 #[derive(Debug, Deserialize)]
@@ -59,6 +61,14 @@ where
 
 impl OpenMeteoProvider {
     pub fn new() -> Self {
+        Self::build(None, "")
+    }
+
+    pub(crate) fn for_model(model: &'static str, attribution: &'static str) -> Self {
+        Self::build(Some(model), attribution)
+    }
+
+    fn build(model: Option<&'static str>, attribution: &'static str) -> Self {
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(30))
             .connect_timeout(Duration::from_secs(10))
@@ -72,6 +82,8 @@ impl OpenMeteoProvider {
         Self {
             client,
             base_url: OPEN_METEO_BASE_URL.to_string(),
+            model,
+            attribution,
         }
     }
 
@@ -99,7 +111,7 @@ impl OpenMeteoProvider {
     }
 
     fn build_url(&self, location: &WeatherLocation, units: &WeatherUnits) -> String {
-        format!(
+        let mut url = format!(
             "{}?latitude={}&longitude={}&current=temperature_2m,is_day,precipitation,weather_code,wind_speed_10m,wind_direction_10m&temperature_unit={}&wind_speed_unit={}&precipitation_unit={}&timezone=auto",
             self.base_url,
             location.latitude,
@@ -107,7 +119,14 @@ impl OpenMeteoProvider {
             Self::temperature_unit_param(&units.temperature),
             Self::wind_speed_unit_param(&units.wind_speed),
             Self::precipitation_unit_param(&units.precipitation)
-        )
+        );
+
+        if let Some(model) = self.model {
+            url.push_str("&models=");
+            url.push_str(model);
+        }
+
+        url
     }
 }
 
@@ -120,7 +139,7 @@ impl Default for OpenMeteoProvider {
 #[async_trait]
 impl WeatherProvider for OpenMeteoProvider {
     fn get_attribution(&self) -> &'static str {
-        ""
+        self.attribution
     }
 
     async fn get_current_weather(
@@ -184,5 +203,23 @@ mod tests {
             OpenMeteoProvider::precipitation_unit_param(&PrecipitationUnit::Mm),
             "mm"
         );
+    }
+
+    #[test]
+    fn test_model_param_is_only_added_when_requested() {
+        let location = WeatherLocation {
+            latitude: 52.52,
+            longitude: 13.41,
+            elevation: None,
+        };
+        let units = WeatherUnits::default();
+
+        let automatic_url = OpenMeteoProvider::new().build_url(&location, &units);
+        assert!(!automatic_url.contains("models="));
+
+        let icon_url =
+            OpenMeteoProvider::for_model("icon_global", "DWD ICON Global via Open-Meteo")
+                .build_url(&location, &units);
+        assert!(icon_url.ends_with("&models=icon_global"));
     }
 }

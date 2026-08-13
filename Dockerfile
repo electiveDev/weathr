@@ -35,7 +35,7 @@ RUN apt-get update \
 
 FROM scratch
 
-LABEL org.opencontainers.image.source="https://github.com/Veirt/weathr"
+LABEL org.opencontainers.image.source="https://github.com/electiveDev/weathr"
 LABEL org.opencontainers.image.description="Terminal-based ASCII weather application"
 
 ENV HOME=/

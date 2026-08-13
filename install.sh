@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-REPO="Veirt/weathr"
+REPO="electiveDev/weathr"
 
 require_commands() {
     for cmd in curl mktemp sed grep uname head; do

@@ -37,7 +37,7 @@ priority: optional
 maintainer: Dony Mulya <veirt@duck.com>
 description: |
   Terminal-based ASCII weather application with animated scenes driven by real-time weather data.
-homepage: https://github.com/veirt/weathr
+homepage: https://github.com/electiveDev/weathr
 license: GPL-3.0-or-later
 contents:
   - src: ${PACKAGE_ROOT}/usr/bin/weathr

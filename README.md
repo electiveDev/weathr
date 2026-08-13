@@ -2,11 +2,16 @@
 
 [![Crates.io](https://img.shields.io/crates/v/weathr.svg)](https://crates.io/crates/weathr)
 [![Downloads](https://img.shields.io/crates/d/weathr.svg)](https://crates.io/crates/weathr)
-[![License](https://img.shields.io/crates/l/weathr.svg)](https://github.com/veirt/weathr/blob/main/LICENSE)
+[![License](https://img.shields.io/crates/l/weathr.svg)](https://github.com/electiveDev/weathr/blob/main/LICENSE)
+
+This repository is a modified version of [Veirt/weathr](https://github.com/Veirt/weathr),
+originally authored by Dony Mulya. It remains licensed under GPL-3.0-or-later; this
+repository's changes select DWD's global ICON model as the default weather model
+(2026-08-13).
 
 A terminal weather app with ASCII animations driven by real-time weather data.
 
-Features real-time weather from Open-Meteo with animated rain, snow, thunderstorms, flying airplanes, day/night cycles, and auto-location detection.
+Features real-time weather from the DWD's global ICON model via Open-Meteo, with animated rain, snow, thunderstorms, flying airplanes, day/night cycles, and auto-location detection.
 
 ## Demo
 
@@ -44,7 +49,7 @@ Features real-time weather from Open-Meteo with animated rain, snow, thunderstor
 Download and install the latest binary with one command:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/Veirt/weathr/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/electiveDev/weathr/main/install.sh | sh
 ```
 
 ### Via Cargo
@@ -58,7 +63,7 @@ cargo install weathr
 You need Rust installed.
 
 ```bash
-git clone https://github.com/veirt/weathr.git
+git clone https://github.com/electiveDev/weathr.git
 cd weathr
 cargo install --path .
 ```
@@ -68,7 +73,7 @@ cargo install --path .
 Run the published image from GHCR:
 
 ```bash
-docker run --rm -it ghcr.io/veirt/weathr:latest
+docker run --rm -it ghcr.io/electiveDev/weathr:latest
 ```
 
 Mount your config if you want to use your existing settings:
@@ -76,7 +81,7 @@ Mount your config if you want to use your existing settings:
 ```bash
 docker run --rm -it \
   -v "$HOME/.config/weathr:/.config/weathr:ro" \
-  ghcr.io/veirt/weathr:latest
+  ghcr.io/electiveDev/weathr:latest
 ```
 
 Build the image locally:
@@ -131,7 +136,7 @@ Available as a flake:
 
 ```nix
 inputs = {
-    weathr.url = "github:Veirt/weathr";
+    weathr.url = "github:electiveDev/weathr";
 };
 ```
 
@@ -230,6 +235,16 @@ wind_speed = "kmh"
 
 # Precipitation unit: "mm" or "inch"
 precipitation = "mm"
+```
+
+### Weather Provider
+
+By default, weathr requests the DWD's global ICON model through the Open-Meteo forecast
+API (`models=icon_global`). This model is used for all locations, including Germany.
+The existing Open-Meteo provider remains available as an explicit alternative:
+
+```toml
+[provider.OpenMeteo]
 ```
 
 ### Location Display Modes
@@ -353,7 +368,7 @@ GPL-3.0-or-later
 
 ### Weather Data
 
-Weather data provided by [Open-Meteo.com](https://open-meteo.com/) under the [CC BY 4.0 license](https://creativecommons.org/licenses/by/4.0/).
+Weather data uses the DWD's global ICON model through [Open-Meteo.com](https://open-meteo.com/) under the [CC BY 4.0 license](https://creativecommons.org/licenses/by/4.0/). The ICON model is provided by the [Deutscher Wetterdienst (DWD)](https://www.dwd.de/EN/ourservices/nwp_forecast_data/nwp_forecast_data.html).
 
 ### Geocoding
 

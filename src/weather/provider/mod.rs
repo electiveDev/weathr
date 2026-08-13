@@ -3,6 +3,7 @@ use crate::weather::types::{CelestialEvents, WeatherLocation, WeatherUnits};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
+pub mod icon_global;
 pub mod met_office;
 pub mod open_meteo;
 pub mod supplementary;

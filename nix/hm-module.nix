@@ -31,7 +31,7 @@
           description = ''
             Configuration written to the application's config directory.
 
-            See <https://github.com/veirt/weathr#configuration> for available options.
+            See <https://github.com/electiveDev/weathr#configuration> for available options.
           '';
           example = lib.literalExpression ''
             {

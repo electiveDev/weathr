@@ -5,6 +5,7 @@ pub mod types;
 pub mod units;
 
 pub use client::WeatherClient;
+pub use provider::icon_global::IconGlobalProvider;
 pub use provider::open_meteo::OpenMeteoProvider;
 pub use types::{
     FogIntensity, RainIntensity, SnowIntensity, WeatherCondition, WeatherConditions, WeatherData,

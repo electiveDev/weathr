@@ -44,6 +44,7 @@ fn default_theme() -> String {
 #[derive(Deserialize, Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Copy)]
 pub enum Provider {
     #[default]
+    IconGlobal,
     OpenMeteo,
     MetOffice,
 }
@@ -484,6 +485,11 @@ longitude = 0.0
             config.units.precipitation,
             crate::weather::types::PrecipitationUnit::Mm
         );
+    }
+
+    #[test]
+    fn test_default_provider_is_icon_global() {
+        assert_eq!(Provider::default(), Provider::IconGlobal);
     }
 
     #[test]

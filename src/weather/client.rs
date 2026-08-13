@@ -37,24 +37,24 @@ impl WeatherClient {
     ) -> Result<WeatherData, WeatherError> {
         {
             let cache = self.cache.read().await;
-            if let Some(cached) = cache.as_ref()
-                && cached.fetched_at.elapsed() < self.cache_duration
-            {
-                return Ok(cached.data.clone());
+            if let Some(cached) = cache.as_ref() {
+                if cached.fetched_at.elapsed() < self.cache_duration {
+                    return Ok(cached.data.clone());
+                }
             }
         }
 
-        if let Some(cached_data) =
-            cache::load_cached_weather(location.latitude, location.longitude, provider).await
-            && std::env::var("CACHE_DISABLED").is_err()
-        // Should've done this sooner
-        {
-            let mut cache = self.cache.write().await;
-            *cache = Some(CachedWeather {
-                data: cached_data.clone(),
-                fetched_at: Instant::now(),
-            });
-            return Ok(cached_data);
+        if std::env::var("CACHE_DISABLED").is_err() {
+            if let Some(cached_data) =
+                cache::load_cached_weather(location.latitude, location.longitude, provider).await
+            {
+                let mut cache = self.cache.write().await;
+                *cache = Some(CachedWeather {
+                    data: cached_data.clone(),
+                    fetched_at: Instant::now(),
+                });
+                return Ok(cached_data);
+            }
         }
 
         let response = self.provider.get_current_weather(location, units).await?;

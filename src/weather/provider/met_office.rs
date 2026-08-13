@@ -332,13 +332,15 @@ impl MetOfficeTimeSeries {
         value: f64,
         target_param: &str,
     ) -> Result<f64, WeatherError> {
-        if let Some(param) = Self::find_param(param, target_param)
-            && param.type_ == "Parameter"
-        {
-            if param.unit.label == "degrees Celsius" {
-                Ok(normalize_temperature(value, units.temperature))
+        if let Some(param) = Self::find_param(param, target_param) {
+            if param.type_ == "Parameter" {
+                if param.unit.label == "degrees Celsius" {
+                    Ok(normalize_temperature(value, units.temperature))
+                } else {
+                    Err(WeatherError::Data(crate::error::DataError::NoData)) // This should never happen & if it does, there will be no data anyway
+                }
             } else {
-                Err(WeatherError::Data(crate::error::DataError::NoData)) // This should never happen & if it does, there will be no data anyway
+                Ok(normalize_temperature(value, units.temperature))
             }
         } else {
             Ok(normalize_temperature(value, units.temperature))
@@ -354,13 +356,15 @@ impl MetOfficeTimeSeries {
         value: f64,
         target_param: &str,
     ) -> Result<f64, WeatherError> {
-        if let Some(param) = Self::find_param(param, target_param)
-            && param.type_ == "Parameter"
-        {
-            if param.unit.label == "metres per second" {
-                Ok(normalize_wind_speed(value, units.wind_speed))
+        if let Some(param) = Self::find_param(param, target_param) {
+            if param.type_ == "Parameter" {
+                if param.unit.label == "metres per second" {
+                    Ok(normalize_wind_speed(value, units.wind_speed))
+                } else {
+                    Err(WeatherError::Data(crate::error::DataError::NoData)) // This should never happen & if it does, there will be no data anyway
+                }
             } else {
-                Err(WeatherError::Data(crate::error::DataError::NoData)) // This should never happen & if it does, there will be no data anyway
+                Ok(normalize_wind_speed(value, units.wind_speed))
             }
         } else {
             Ok(normalize_wind_speed(value, units.wind_speed))
@@ -376,13 +380,15 @@ impl MetOfficeTimeSeries {
     ) -> Result<f64, WeatherError> {
         let value = self.precipitation_rate;
 
-        if let Some(param) = Self::find_param(param, "Precipitation Rate")
-            && param.type_ == "Parameter"
-        {
-            if param.unit.label == "millimetres per hour" {
-                Ok(normalize_precipitation(value, units.precipitation))
+        if let Some(param) = Self::find_param(param, "Precipitation Rate") {
+            if param.type_ == "Parameter" {
+                if param.unit.label == "millimetres per hour" {
+                    Ok(normalize_precipitation(value, units.precipitation))
+                } else {
+                    Err(WeatherError::Data(crate::error::DataError::NoData)) // This should never happen & if it does, there will be no data anyway
+                }
             } else {
-                Err(WeatherError::Data(crate::error::DataError::NoData)) // This should never happen & if it does, there will be no data anyway
+                Ok(normalize_precipitation(value, units.precipitation))
             }
         } else {
             Ok(normalize_precipitation(value, units.precipitation))

@@ -7,8 +7,8 @@ const HOUSE_ASCII: &str = include_str!("assets/house.txt");
 pub struct House;
 
 impl House {
-    pub const WIDTH: u16 = 64;
-    pub const HEIGHT: u16 = 10;
+    pub const WIDTH: u16 = crate::scene::HOUSE_WIDTH;
+    pub const HEIGHT: u16 = crate::scene::HOUSE_HEIGHT;
     pub const CHIMNEY_X_OFFSET: u16 = 12;
 
     pub fn width(&self) -> u16 {

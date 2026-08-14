@@ -5,18 +5,21 @@ use crossterm::style::Color;
 use rand::{Rng, RngExt};
 use std::io;
 
-const FRAME_STEP: u8 = 4;
+const FRAME_STEP: u8 = 12;
 pub const SPRITE_WIDTH: u16 = 5;
 pub const SPRITE_HEIGHT: u16 = 3;
-const WANDER_MIN: u16 = 70;
-const WANDER_MAX: u16 = 160;
-const PECK_MIN: u16 = 45;
-const PECK_MAX: u16 = 90;
-const SUNBATHE_MIN: u16 = 90;
-const SUNBATHE_MAX: u16 = 180;
-const DRINK_MIN: u16 = 60;
-const DRINK_MAX: u16 = 120;
-const DRINK_TRAVEL_SPEED: f32 = 0.70;
+const WANDER_MIN: u16 = 90;
+const WANDER_MAX: u16 = 210;
+const PECK_MIN: u16 = 75;
+const PECK_MAX: u16 = 150;
+const SUNBATHE_MIN: u16 = 120;
+const SUNBATHE_MAX: u16 = 240;
+const DRINK_MIN: u16 = 150;
+const DRINK_MAX: u16 = 300;
+const DRINK_TRAVEL_SPEED_FACTOR: f32 = 2.0;
+const DRINK_SELECTION_PERCENT: u8 = 6;
+const SUNBATHE_SELECTION_PERCENT: u8 = 20;
+const DRINK_COOLDOWN_FRAMES: u16 = 480;
 
 const CHICKEN_WALK_FRAMES: [[&str; 3]; 4] = [
     ["  __ ", " (o)>", " / \\ "],
@@ -79,6 +82,7 @@ struct Chicken {
     state: ChickenActivity,
     state_timer: u16,
     target_reached: bool,
+    drink_cooldown: u16,
     frame_index: usize,
     frame_tick: u8,
 }
@@ -95,6 +99,7 @@ impl Chicken {
             state: ChickenActivity::Wandering,
             state_timer: 0,
             target_reached: false,
+            drink_cooldown: 0,
             frame_index: 0,
             frame_tick: 0,
         }
@@ -123,6 +128,18 @@ impl Chicken {
         self.update_direction();
         self.reset_frame();
     }
+    fn drinking_roll_allowed(
+        roll: u8,
+        pond: Option<PondBounds>,
+        sunny: bool,
+        drink_cooldown: u16,
+    ) -> bool {
+        if pond.is_none() || drink_cooldown > 0 {
+            return false;
+        }
+        let start = if sunny { SUNBATHE_SELECTION_PERCENT } else { 0 };
+        roll >= start && roll < start.saturating_add(DRINK_SELECTION_PERCENT)
+    }
 
     fn choose_activity(
         &mut self,
@@ -132,13 +149,14 @@ impl Chicken {
         sunny: bool,
     ) {
         let roll = rng.random_range(0..100u8);
-        if sunny && roll < 20 {
+        if sunny && roll < SUNBATHE_SELECTION_PERCENT {
             self.start_ground_activity(
                 ChickenActivity::Sunbathing,
                 rng.random_range(SUNBATHE_MIN..=SUNBATHE_MAX),
                 bounds,
             );
-        } else if let Some(pond) = pond.filter(|_| roll < 32) {
+        } else if Self::drinking_roll_allowed(roll, pond, sunny, self.drink_cooldown) {
+            let pond = pond.expect("drinking_roll_allowed checked pond presence");
             self.start_drinking(rng.random_range(DRINK_MIN..=DRINK_MAX), bounds, pond);
         } else if roll < 64 {
             self.start_ground_activity(
@@ -171,7 +189,7 @@ impl Chicken {
         let dy = self.target_y - self.y;
         let distance = (dx * dx + dy * dy).sqrt();
         let speed = if self.state == ChickenActivity::Drinking {
-            self.speed.max(DRINK_TRAVEL_SPEED)
+            self.speed.max(0.05) * DRINK_TRAVEL_SPEED_FACTOR
         } else {
             self.speed.max(0.05)
         };
@@ -200,6 +218,7 @@ impl Chicken {
         };
         self.x = bounds.clamp_x(self.x);
         self.y = bounds.clamp_y(self.y);
+        self.drink_cooldown = self.drink_cooldown.saturating_sub(1);
 
         match self.state {
             ChickenActivity::Wandering => {
@@ -217,6 +236,7 @@ impl Chicken {
                 if !self.target_reached {
                     self.move_towards_target(bounds);
                 } else if self.state_timer == 0 {
+                    self.drink_cooldown = DRINK_COOLDOWN_FRAMES;
                     self.choose_activity(rng, bounds, pond, sunny);
                 } else {
                     self.state_timer = self.state_timer.saturating_sub(1);
@@ -259,9 +279,9 @@ impl ChickenSystem {
         let second_x = (third * 2).min(max_x);
 
         let mut chickens = vec![
-            Chicken::new(1.0, 1, 0.14),
-            Chicken::new(third as f32, -1, 0.16),
-            Chicken::new(second_x as f32, 1, 0.12),
+            Chicken::new(1.0, 1, 0.06),
+            Chicken::new(third as f32, -1, 0.07),
+            Chicken::new(second_x as f32, 1, 0.055),
         ];
         let initial_ground_y = terminal_height.saturating_sub(7);
         if let Some(bounds) = lawn_bounds(terminal_width, terminal_height, initial_ground_y)
@@ -277,16 +297,8 @@ impl ChickenSystem {
             }
 
             chickens[0].start_ground_activity(ChickenActivity::Pecking, PECK_MAX, bounds);
+            chickens[1].start_ground_activity(ChickenActivity::Pecking, PECK_MAX, bounds);
             chickens[2].start_ground_activity(ChickenActivity::Sunbathing, SUNBATHE_MAX, bounds);
-
-            if let Some(pond) = pond_bounds(terminal_width, terminal_height, initial_ground_y) {
-                chickens[1].x =
-                    bounds.clamp_x(pond.center_x().saturating_sub(SPRITE_WIDTH / 2) as f32);
-                chickens[1].y = bounds.clamp_y(pond.y.saturating_sub(SPRITE_HEIGHT - 1) as f32);
-                chickens[1].start_drinking(DRINK_MAX, bounds, pond);
-            } else {
-                chickens[1].start_ground_activity(ChickenActivity::Pecking, PECK_MAX, bounds);
-            }
         }
 
         Self {
@@ -527,28 +539,79 @@ mod tests {
             states,
             vec![
                 ChickenActivity::Pecking,
-                ChickenActivity::Drinking,
+                ChickenActivity::Pecking,
                 ChickenActivity::Sunbathing
             ]
         );
 
         let lawn = test_lawn();
         let bounds = AnchorBounds::from_lawn(lawn).unwrap();
-        let pond = pond_bounds(80, 24, 17).unwrap();
         for chicken in &system.chickens {
             assert!(chicken.y >= bounds.top as f32);
             assert!(chicken.y <= bounds.bottom as f32);
             assert!(chicken.state_timer >= PECK_MIN);
         }
-        assert_eq!(
-            system.chickens[1].target_x,
-            bounds.clamp_x(pond.center_x().saturating_sub(SPRITE_WIDTH / 2) as f32)
-        );
-        assert_eq!(
-            system.chickens[1].target_y,
-            bounds.clamp_y(pond.y.saturating_sub(SPRITE_HEIGHT - 1) as f32)
-        );
+        assert_eq!(system.chickens[1].x, (max_x(80) / 3) as f32);
+        assert_eq!(system.chickens[1].target_x, system.chickens[1].x);
         assert_ne!(system.chickens[0].y, system.chickens[2].y);
+    }
+    #[test]
+    fn drinking_selection_is_rare_requires_pond_and_respects_cooldown() {
+        let pond = pond_bounds(80, 24, 17);
+        assert!(DRINK_SELECTION_PERCENT < 12);
+        assert!(Chicken::drinking_roll_allowed(0, pond, false, 0));
+        assert!(!Chicken::drinking_roll_allowed(
+            DRINK_SELECTION_PERCENT,
+            pond,
+            false,
+            0
+        ));
+        assert!(Chicken::drinking_roll_allowed(
+            SUNBATHE_SELECTION_PERCENT,
+            pond,
+            true,
+            0
+        ));
+        assert!(!Chicken::drinking_roll_allowed(
+            SUNBATHE_SELECTION_PERCENT.saturating_add(DRINK_SELECTION_PERCENT),
+            pond,
+            true,
+            0
+        ));
+        assert!(!Chicken::drinking_roll_allowed(0, None, false, 0));
+        assert!(!Chicken::drinking_roll_allowed(
+            0,
+            pond,
+            false,
+            DRINK_COOLDOWN_FRAMES
+        ));
+    }
+
+    #[test]
+    fn drinking_cooldown_is_applied_after_visible_drink() {
+        let lawn = test_lawn();
+        let bounds = AnchorBounds::from_lawn(lawn).unwrap();
+        let pond = pond_bounds(80, 24, 17).unwrap();
+        let mut chicken = Chicken::new(10.0, 1, 0.06);
+        chicken.state = ChickenActivity::Drinking;
+        chicken.target_reached = true;
+        chicken.state_timer = 0;
+        let mut rng = StdRng::seed_from_u64(7);
+
+        chicken.advance(lawn, Some(pond), true, &mut rng);
+
+        assert_eq!(chicken.drink_cooldown, DRINK_COOLDOWN_FRAMES);
+        assert_ne!(chicken.state, ChickenActivity::Drinking);
+        assert!(DRINK_COOLDOWN_FRAMES >= 300);
+        assert!(bounds.left <= chicken.x as u16);
+    }
+
+    #[test]
+    fn animal_pacing_uses_materially_slower_frame_and_travel_constants() {
+        assert!(FRAME_STEP >= 10);
+        assert!(DRINK_TRAVEL_SPEED_FACTOR <= 2.0);
+        assert!(WANDER_MIN >= 90);
+        assert!(DRINK_MIN >= 120);
     }
 
     #[test]
@@ -605,8 +668,7 @@ mod tests {
         chicken.y = bounds.top as f32;
         let mut rng = StdRng::seed_from_u64(19);
         chicken.start_drinking(DRINK_MAX, bounds, pond);
-
-        for _ in 0..120 {
+        for _ in 0..700 {
             chicken.advance(lawn, Some(pond), true, &mut rng);
             if chicken.target_reached {
                 break;

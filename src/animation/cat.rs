@@ -1,18 +1,21 @@
 use crate::animation::{AnimationSystem, FrameCommands, FrameContext, RenderLayer, TerminalSize};
 use crate::render::TerminalRenderer;
-use crate::scene::{LawnBounds, lawn_bounds};
+use crate::scene::{HouseBounds, LawnBounds, house_bounds, lawn_bounds};
 use crossterm::style::Color;
 use rand::{Rng, RngExt};
 use std::io;
 
-const FRAME_STEP: u8 = 5;
+const FRAME_STEP: u8 = 15;
 pub const SPRITE_WIDTH: u16 = 9;
 pub const SPRITE_HEIGHT: u16 = 3;
 const SLEEP_MIN: u16 = 180;
-const SLEEP_MAX: u16 = 520;
-const WALK_MIN: u16 = 55;
-const WALK_MAX: u16 = 150;
-const RETURN_TIMEOUT: u16 = 500;
+const SLEEP_MAX: u16 = 420;
+const WALK_MIN: u16 = 90;
+const WALK_MAX: u16 = 180;
+const RETURN_TIMEOUT: u16 = 600;
+const WAKE_CHANCE_PERCENT: u8 = 32;
+const HUNT_CHANCE_PERCENT: u8 = 20;
+const CAT_MOVE_SPEED: f32 = 0.12;
 
 const CAT_WALK_FRAMES: [[&str; 3]; 4] = [
     [" /\\_/\\\\  ", "( o.o )__", "  / \\    "],
@@ -23,7 +26,7 @@ const CAT_WALK_FRAMES: [[&str; 3]; 4] = [
 const CAT_SLEEP_FRAMES: [[&str; 3]; 3] = [
     [" /\\_/\\\\  ", "( -.- )__", "  > ^ <  "],
     [" /\\_/\\\\  ", "( -.- )__", "   ^ ^   "],
-    [" /\\_/\\\\  ", "( o.o )__", "  > ^ <  "],
+    [" /\\_/\\\\  ", "( -.- )__", "  > ^ <  "],
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -77,30 +80,41 @@ struct Cat {
     state_timer: u16,
     frame_index: usize,
     frame_tick: u8,
+    anchor_initialized: bool,
+    has_woken: bool,
 }
 
 impl Cat {
-    fn new(terminal_width: u16) -> Self {
-        let sleep_x = terminal_width.saturating_sub(SPRITE_WIDTH) as f32 / 2.0;
+    fn new(_terminal_width: u16) -> Self {
         Self {
-            x: sleep_x,
+            x: 0.0,
             y: 0.0,
-            sleep_x,
+            sleep_x: 0.0,
             sleep_y: 0.0,
-            target_x: sleep_x,
+            target_x: 0.0,
             target_y: 0.0,
             direction: 1,
-            speed: 0.48,
+            speed: CAT_MOVE_SPEED,
             state: CatActivity::Sleeping,
             state_timer: SLEEP_MIN,
             frame_index: 0,
             frame_tick: 0,
+            anchor_initialized: false,
+            has_woken: false,
         }
     }
 
-    fn set_lawn_spot(&mut self, bounds: AnchorBounds, initial: bool) {
-        let new_sleep_x = (bounds.left as f32 + bounds.right as f32) / 2.0;
-        let new_sleep_y = bounds.bottom as f32;
+    fn set_lawn_spot(&mut self, bounds: AnchorBounds, house: HouseBounds, initial: bool) {
+        // Prefer the right side only when the complete sprite fits there.
+        // At 80 columns the house leaves eight cells on each side, so the
+        // left anchor (x=0) remains the stable, visible choice.
+        let right_clearance = bounds.right.saturating_sub(house.right);
+        let new_sleep_x = if right_clearance >= SPRITE_WIDTH {
+            bounds.clamp_x(house.right.saturating_add(1) as f32)
+        } else {
+            bounds.clamp_x(house.left.saturating_sub(SPRITE_WIDTH) as f32)
+        };
+        let new_sleep_y = bounds.clamp_y(house.bottom.saturating_add(1) as f32);
         if initial {
             self.sleep_x = new_sleep_x;
             self.sleep_y = new_sleep_y;
@@ -108,9 +122,10 @@ impl Cat {
             self.y = self.sleep_y;
             self.target_x = self.sleep_x;
             self.target_y = self.sleep_y;
+            self.anchor_initialized = true;
         } else {
-            self.sleep_x = bounds.clamp_x(new_sleep_x);
-            self.sleep_y = bounds.clamp_y(new_sleep_y);
+            self.sleep_x = new_sleep_x;
+            self.sleep_y = new_sleep_y;
             if self.state == CatActivity::Sleeping {
                 self.x = self.sleep_x;
                 self.y = self.sleep_y;
@@ -194,6 +209,7 @@ impl Cat {
     fn advance(
         &mut self,
         lawn: LawnBounds,
+        house: HouseBounds,
         terminal_width: u16,
         is_day: bool,
         weather_safe: bool,
@@ -202,9 +218,8 @@ impl Cat {
         let Some(bounds) = AnchorBounds::from_lawn(lawn) else {
             return;
         };
-        let initial_spot = self.sleep_y == 0.0;
-        self.set_lawn_spot(bounds, initial_spot);
-
+        let initial_spot = !self.anchor_initialized;
+        self.set_lawn_spot(bounds, house, initial_spot);
         let outdoor_allowed = is_day && weather_safe;
         if !outdoor_allowed && !matches!(self.state, CatActivity::Sleeping | CatActivity::Returning)
         {
@@ -217,11 +232,13 @@ impl Cat {
                 self.y = self.sleep_y;
                 if outdoor_allowed {
                     if self.state_timer == 0 {
-                        // A cat is usually asleep. Only a minority of wakeups
-                        // become an outing, and the choice is persistent until
-                        // the outing timer/state completes.
-                        if rng.random_range(0..100u8) < 24 {
-                            if rng.random_bool(0.30) {
+                        // The first wake is guaranteed to make the normal
+                        // TUI cycle observable; later sleep cycles remain
+                        // probabilistic and predominantly stay asleep.
+                        let first_wake = !self.has_woken;
+                        if first_wake || rng.random_range(0..100u8) < WAKE_CHANCE_PERCENT {
+                            self.has_woken = true;
+                            if !first_wake && rng.random_range(0..100u8) < HUNT_CHANCE_PERCENT {
                                 self.start_hunting(rng);
                             } else {
                                 self.start_wandering(bounds, rng);
@@ -238,7 +255,7 @@ impl Cat {
                 if !outdoor_allowed {
                     self.start_returning();
                 } else if self.state_timer == 0 || self.move_towards_target(bounds) {
-                    if rng.random_range(0..100u8) < 28 {
+                    if rng.random_range(0..100u8) < HUNT_CHANCE_PERCENT {
                         self.start_hunting(rng);
                     } else {
                         self.start_returning();
@@ -313,6 +330,14 @@ impl AnimationSystem for CatSystem {
     fn on_resize(&mut self, size: TerminalSize) {
         self.terminal_width = size.width;
         self.terminal_height = size.height;
+        let ground_y = size.height.saturating_sub(7);
+        if let (Some(house), Some(bounds)) = (
+            house_bounds(size.width, size.height, ground_y),
+            lawn_bounds(size.width, size.height, ground_y).and_then(AnchorBounds::from_lawn),
+        ) {
+            self.cat
+                .set_lawn_spot(bounds, house, !self.cat.anchor_initialized);
+        }
         let max_y = size.height.saturating_sub(1) as f32;
         self.cat.y = self.cat.y.clamp(0.0, max_y);
         self.cat.sleep_x = self
@@ -332,11 +357,15 @@ impl AnimationSystem for CatSystem {
         let Some(lawn) = lawn_bounds(ctx.size.width, ctx.size.height, ctx.horizon_y) else {
             return;
         };
+        let Some(house) = ctx.house_bounds() else {
+            return;
+        };
         let weather_safe = !ctx.conditions.is_raining
             && !ctx.conditions.is_snowing
             && !ctx.conditions.is_thunderstorm;
         self.cat.advance(
             lawn,
+            house,
             ctx.size.width,
             ctx.conditions.sun.is_day,
             weather_safe,
@@ -451,11 +480,16 @@ fn cat_color(character: char) -> Color {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::scene::house_bounds;
     use rand::SeedableRng;
     use rand::rngs::StdRng;
 
     fn test_lawn() -> LawnBounds {
         lawn_bounds(80, 24, 17).unwrap()
+    }
+
+    fn test_house() -> HouseBounds {
+        house_bounds(80, 24, 17).unwrap()
     }
 
     #[test]
@@ -470,36 +504,134 @@ mod tests {
     }
 
     #[test]
+    fn cat_sleep_frames_keep_eyes_closed() {
+        for frame in CAT_SLEEP_FRAMES {
+            assert!(frame[1].contains("-.-"));
+            assert!(!frame[1].contains("o.o"));
+        }
+    }
+
+    #[test]
+    fn cat_sleeps_at_a_house_adjacent_anchor() {
+        let lawn = test_lawn();
+        let house = test_house();
+        let mut cat = Cat::new(80);
+        let mut rng = StdRng::seed_from_u64(21);
+        cat.advance(lawn, house, 80, true, true, &mut rng);
+
+        assert_eq!(house.left, 8);
+        assert_eq!(house.bottom, 16);
+        assert_eq!(cat.sleep_x, 0.0);
+        assert_eq!(cat.sleep_y, 17.0);
+        assert_eq!(cat.x, cat.sleep_x);
+        assert_eq!(cat.y, cat.sleep_y);
+    }
+
+    #[test]
+    fn cat_anchor_uses_right_side_when_wide_and_clamps_when_tiny() {
+        let mut wide = Cat::new(100);
+        let wide_lawn = lawn_bounds(100, 24, 17).unwrap();
+        let wide_house = house_bounds(100, 24, 17).unwrap();
+        let mut rng = StdRng::seed_from_u64(3);
+        wide.advance(wide_lawn, wide_house, 100, true, true, &mut rng);
+        assert_eq!(wide.sleep_x, 82.0);
+
+        let mut tiny = Cat::new(12);
+        let tiny_lawn = lawn_bounds(12, 8, 1).unwrap();
+        let tiny_house = house_bounds(12, 8, 1).unwrap();
+        tiny.advance(tiny_lawn, tiny_house, 12, true, true, &mut rng);
+        let tiny_bounds = AnchorBounds::from_lawn(tiny_lawn).unwrap();
+        assert!(tiny.sleep_x >= tiny_bounds.left as f32);
+        assert!(tiny.sleep_x <= tiny_bounds.right as f32);
+        assert!(tiny.sleep_y >= tiny_bounds.top as f32);
+        assert!(tiny.sleep_y <= tiny_bounds.bottom as f32);
+    }
+
+    #[test]
+    fn cat_resize_recomputes_house_adjacent_anchor() {
+        let mut system = CatSystem::new(80, 24);
+        system.on_resize(TerminalSize {
+            width: 80,
+            height: 24,
+        });
+        assert_eq!(system.cat.sleep_x, 0.0);
+        assert_eq!(system.cat.sleep_y, 17.0);
+
+        system.on_resize(TerminalSize {
+            width: 100,
+            height: 24,
+        });
+        assert_eq!(system.cat.sleep_x, 82.0);
+    }
+
+    #[test]
     fn cat_sleeps_mostly_and_does_not_redecide_each_frame() {
         let mut cat = Cat::new(80);
         let lawn = test_lawn();
+        let house = test_house();
         let mut rng = StdRng::seed_from_u64(21);
-        cat.advance(lawn, 80, true, true, &mut rng);
+        cat.advance(lawn, house, 80, true, true, &mut rng);
         assert_eq!(cat.state, CatActivity::Sleeping);
         let timer = cat.state_timer;
-        cat.advance(lawn, 80, true, true, &mut rng);
+        cat.advance(lawn, house, 80, true, true, &mut rng);
         assert_eq!(cat.state, CatActivity::Sleeping);
         assert_eq!(cat.state_timer, timer.saturating_sub(1));
+    }
+    #[test]
+    fn cat_first_wake_enters_wandering_within_bounded_cycle() {
+        let lawn = test_lawn();
+        let house = test_house();
+        let mut cat = Cat::new(80);
+        let mut rng = StdRng::seed_from_u64(99);
+        cat.advance(lawn, house, 80, true, true, &mut rng);
+        cat.state_timer = 0;
+        cat.advance(lawn, house, 80, true, true, &mut rng);
+        assert_eq!(cat.state, CatActivity::Wandering);
+        assert!(cat.has_woken);
+        assert!(WALK_MIN <= WALK_MAX);
+    }
+
+    #[test]
+    fn cat_wandering_moves_with_slow_bounded_steps() {
+        let lawn = test_lawn();
+        let house = test_house();
+        let bounds = AnchorBounds::from_lawn(lawn).unwrap();
+        let mut cat = Cat::new(80);
+        let mut rng = StdRng::seed_from_u64(1);
+        cat.advance(lawn, house, 80, true, true, &mut rng);
+        cat.state = CatActivity::Wandering;
+        cat.target_x = bounds.right as f32;
+        cat.target_y = bounds.top as f32;
+        cat.state_timer = WALK_MAX;
+        cat.update_direction();
+        let start_x = cat.x;
+        let start_y = cat.y;
+        cat.advance(lawn, house, 80, true, true, &mut rng);
+        assert_eq!(cat.state, CatActivity::Wandering);
+        assert!(cat.x != start_x || cat.y != start_y);
+        assert!(CAT_MOVE_SPEED <= 0.12);
+        assert!(FRAME_STEP >= 12);
     }
 
     #[test]
     fn cat_hunting_can_leave_screen_and_returns_to_sleep_spot() {
         let lawn = test_lawn();
+        let house = test_house();
         let mut cat = Cat::new(80);
         let mut rng = StdRng::seed_from_u64(1);
-        cat.advance(lawn, 80, true, true, &mut rng);
+        cat.advance(lawn, house, 80, true, true, &mut rng);
         let bounds = AnchorBounds::from_lawn(lawn).unwrap();
-        cat.set_lawn_spot(bounds, false);
+        cat.set_lawn_spot(bounds, house, false);
         cat.state = CatActivity::Hunting;
         cat.direction = -1;
         cat.x = -(SPRITE_WIDTH as f32 + 0.5);
         cat.state_timer = RETURN_TIMEOUT;
-        cat.advance(lawn, 80, true, true, &mut rng);
+        cat.advance(lawn, house, 80, true, true, &mut rng);
         assert_eq!(cat.state, CatActivity::Returning);
         assert!(cat.x < 0.0);
 
         for _ in 0..300 {
-            cat.advance(lawn, 80, true, true, &mut rng);
+            cat.advance(lawn, house, 80, true, true, &mut rng);
             if cat.state == CatActivity::Sleeping {
                 break;
             }
@@ -511,14 +643,15 @@ mod tests {
     #[test]
     fn cat_night_forces_return_without_teleporting() {
         let lawn = test_lawn();
+        let house = test_house();
         let mut cat = Cat::new(80);
         let mut rng = StdRng::seed_from_u64(2);
-        cat.advance(lawn, 80, true, true, &mut rng);
+        cat.advance(lawn, house, 80, true, true, &mut rng);
         cat.state = CatActivity::Hunting;
         cat.x = 82.0;
         cat.direction = 1;
         let x_before = cat.x;
-        cat.advance(lawn, 80, false, true, &mut rng);
+        cat.advance(lawn, house, 80, false, true, &mut rng);
         assert_eq!(cat.state, CatActivity::Returning);
         assert!(cat.x < x_before);
         assert!(cat.x > cat.sleep_x);
@@ -527,14 +660,15 @@ mod tests {
     #[test]
     fn overdue_return_keeps_moving_instead_of_teleporting() {
         let lawn = test_lawn();
+        let house = test_house();
         let mut cat = Cat::new(80);
         let mut rng = StdRng::seed_from_u64(9);
-        cat.advance(lawn, 80, true, true, &mut rng);
+        cat.advance(lawn, house, 80, true, true, &mut rng);
         cat.state = CatActivity::Returning;
         cat.x = -100.0;
         cat.state_timer = 1;
         let x_before = cat.x;
-        cat.advance(lawn, 80, false, true, &mut rng);
+        cat.advance(lawn, house, 80, false, true, &mut rng);
         assert_eq!(cat.state, CatActivity::Returning);
         assert!(cat.x > x_before);
         assert!(cat.x < cat.sleep_x);

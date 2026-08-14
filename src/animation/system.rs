@@ -1,5 +1,6 @@
 use crate::app_state::AppState;
 use crate::render::TerminalRenderer;
+use crate::scene::{HouseBounds, house_bounds};
 use crate::weather::{FogIntensity, RainIntensity, SnowIntensity, WeatherConditions};
 use rand::Rng;
 use std::io;
@@ -35,6 +36,12 @@ pub struct FrameContext<'a> {
     pub state: &'a AppState,
     pub show_leaves: bool,
     pub chimney: Option<ChimneyPosition>,
+}
+
+impl FrameContext<'_> {
+    pub fn house_bounds(&self) -> Option<HouseBounds> {
+        house_bounds(self.size.width, self.size.height, self.horizon_y)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

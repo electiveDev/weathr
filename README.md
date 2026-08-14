@@ -63,12 +63,15 @@ weathr --simulate clear --season autumn
 weathr --simulate clear --season winter
 ```
 
-`--season` follows the local calendar by default (spring: March-May, summer: June-August,
-autumn: September-November, winter: December-February); pass it to override the season
-for an offline preview. Simulation mode previews
-weather scenes without requesting live forecast data.
+`--season` follows the local calendar at startup by default (spring: March-May, summer: June-August,
+autumn: September-November, winter: December-February); pass it to override the renderer's season
+with live weather or an offline preview. Simulation mode previews weather scenes without requesting
+live forecast data.
 
-Press F1 to show or hide the HUD location and quit hint (hidden by default); press q or Ctrl+C to exit. Use `weathr --help` for all options.
+Press F1 to show or hide the HUD location and quit hint (hidden by default); press q or Ctrl+C to exit.
+Clear weather has no cloud animation, while cloudy conditions do; dry daytime scenes can also show
+white bird animation. See the [feature reference](docs/FEATURES.md) for verified behavior and
+the [operations runbook](docs/OPERATIONS.md) for the tmux watchdog's safety contract.
 
 ### Configuration
 

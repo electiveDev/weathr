@@ -12,11 +12,12 @@ pub struct SceneContext<'a> {
     pub palette: &'a Palette,
 }
 
-/// The inclusive rectangle in which outdoor animals may place their sprites.
+/// The inclusive rectangle covering the meadow and brown ground rendered by
+/// the world scene.
 ///
 /// `left`/`top` and `right`/`bottom` are terminal cell coordinates. Keeping
-/// this geometry in the scene module lets animation systems use the same lawn
-/// as the world renderer without storing a second, frame-local layout.
+/// this geometry in the scene module keeps related world-layout calculations
+/// aligned with the renderer without duplicating frame-local bounds.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct LawnBounds {
     pub left: u16,
@@ -36,42 +37,6 @@ impl LawnBounds {
 }
 pub const HOUSE_WIDTH: u16 = 64;
 pub const HOUSE_HEIGHT: u16 = 10;
-
-/// The terminal-space footprint used by the world house renderer.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct HouseBounds {
-    pub left: u16,
-    pub top: u16,
-    pub right: u16,
-    pub bottom: u16,
-}
-
-#[allow(dead_code)]
-impl HouseBounds {
-    pub const fn width(self) -> u16 {
-        self.right.saturating_sub(self.left).saturating_add(1)
-    }
-
-    pub const fn height(self) -> u16 {
-        self.bottom.saturating_sub(self.top).saturating_add(1)
-    }
-}
-
-/// Return the house footprint calculated with the same geometry as `WorldScene`.
-pub fn house_bounds(width: u16, height: u16, ground_y: u16) -> Option<HouseBounds> {
-    if width == 0 || height == 0 {
-        return None;
-    }
-
-    let left = (width / 2).saturating_sub(HOUSE_WIDTH / 2);
-    let top = ground_y.saturating_sub(HOUSE_HEIGHT);
-    Some(HouseBounds {
-        left,
-        top,
-        right: left.saturating_add(HOUSE_WIDTH.saturating_sub(1)),
-        bottom: top.saturating_add(HOUSE_HEIGHT.saturating_sub(1)),
-    })
-}
 
 pub const POND_WIDTH: u16 = 13;
 pub const POND_HEIGHT: u16 = 3;
@@ -121,8 +86,8 @@ pub fn lawn_bounds(width: u16, height: u16, ground_y: u16) -> Option<LawnBounds>
 }
 
 /// Place a small, stable pond at the lower-right of the meadow. It is
-/// intentionally derived from the same bounds used by animals, so resize
-/// cannot make it drift outside the scene.
+/// derived from the same bounds used by the world renderer, so resize cannot
+/// make it drift outside the scene.
 pub fn pond_bounds(width: u16, height: u16, ground_y: u16) -> Option<PondBounds> {
     let lawn = lawn_bounds(width, height, ground_y)?;
     if lawn.width() < POND_WIDTH.saturating_add(4) || lawn.height() < POND_HEIGHT {
@@ -215,15 +180,6 @@ mod tests {
         assert!(pond.bottom() <= lawn.bottom);
         assert_eq!(pond.width, POND_WIDTH);
         assert_eq!(pond.height, POND_HEIGHT);
-    }
-
-    #[test]
-    fn house_geometry_matches_normal_world_layout() {
-        let house = house_bounds(80, 24, 17).unwrap();
-        assert_eq!((house.left, house.top), (8, 7));
-        assert_eq!((house.right, house.bottom), (71, 16));
-        assert_eq!(house.width(), HOUSE_WIDTH);
-        assert_eq!(house.height(), HOUSE_HEIGHT);
     }
 
     #[test]

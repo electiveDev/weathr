@@ -57,6 +57,8 @@ async fn main() -> io::Result<()> {
         return Ok(());
     }
 
+    let bunny_test = cli.is_bunny_test();
+
     let mut config = match Config::load() {
         Ok(config) => config,
         Err(e) => {
@@ -97,9 +99,17 @@ async fn main() -> io::Result<()> {
         config.silent = true;
     }
 
+    if bunny_test {
+        // Animation tests are fully offline and should not expose a configured
+        // location or make auto-location/reverse-geocoding requests.
+        config.location.auto = false;
+        config.location.hide = true;
+        config.location.city = None;
+    }
+
     let lat_from_env = std::env::var(config::ENV_LATITUDE).is_ok();
     let lon_from_env = std::env::var(config::ENV_LONGITUDE).is_ok();
-    if lat_from_env || lon_from_env {
+    if !bunny_test && (lat_from_env || lon_from_env) {
         info(
             config.silent,
             &format!(
@@ -109,7 +119,7 @@ async fn main() -> io::Result<()> {
         );
     }
 
-    if !config.location.auto
+    if !bunny_test
         && config.location.latitude == config::default_latitude()
         && config.location.longitude == config::default_longitude()
         && !lat_from_env
@@ -118,8 +128,8 @@ async fn main() -> io::Result<()> {
         eprintln!("Warning: No location set, defaulting to Berlin (52.52, 13.41).");
     }
 
-    // Auto-detect location if enabled
-    if config.location.auto {
+    // Auto-detect location if enabled, except in an explicitly offline test.
+    if !bunny_test && config.location.auto {
         info(config.silent, "Auto-detecting location...");
         match geolocation::detect_location().await {
             Ok(geo_loc) => {
@@ -150,9 +160,9 @@ async fn main() -> io::Result<()> {
         }
     }
 
-    // Resolve city name via reverse geocoding when needed but not yet known
-    if config.location.city.is_none()
-        && !config.location.hide
+    // Resolve city name via reverse geocoding when needed but not yet known.
+    if !bunny_test
+        && config.location.city.is_none()
         && matches!(
             config.location.display,
             config::LocationDisplay::City | config::LocationDisplay::Mixed
@@ -195,9 +205,15 @@ async fn main() -> io::Result<()> {
 
     let (term_width, term_height) = renderer.get_size();
 
+    let simulate_condition = if bunny_test {
+        Some("clear".to_string())
+    } else {
+        cli.simulate
+    };
+
     let mut app = app::App::new(
         &config,
-        cli.simulate,
+        simulate_condition,
         cli.night,
         cli.leaves,
         term_width,

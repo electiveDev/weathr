@@ -216,6 +216,7 @@ mod tests {
         assert_eq!(pond.width, POND_WIDTH);
         assert_eq!(pond.height, POND_HEIGHT);
     }
+
     #[test]
     fn house_geometry_matches_normal_world_layout() {
         let house = house_bounds(80, 24, 17).unwrap();

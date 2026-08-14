@@ -1,6 +1,6 @@
 use crate::animation::{
     AnimationSystem, ChimneyPosition, FrameCommands, FrameContext, RenderLayer, TerminalSize, Wind,
-    airplanes::AirplaneSystem, birds::BirdSystem, cat::CatSystem, chickens::ChickenSystem,
+    airplanes::AirplaneSystem, birds::BirdSystem, bunny::BunnySystem, cat::CatSystem,
     chimney::ChimneySmoke, clouds::CloudSystem, fireflies::FireflySystem, fog::FogSystem,
     leaves::FallingLeaves, moon::MoonSystem, raindrops::RaindropSystem, snow::SnowSystem,
     stars::StarSystem, sunny::SunSystem, thunderstorm::ThunderstormSystem,
@@ -30,8 +30,8 @@ impl AnimationManager {
             Box::new(AirplaneSystem::new(term_width, term_height)),
             // Post-scene
             Box::new(ChimneySmoke::new()),
-            // Farm animals render before weather overlays.
-            Box::new(ChickenSystem::new(term_width, term_height)),
+            // Animals render before weather overlays.
+            Box::new(BunnySystem::new(term_width, term_height)),
             Box::new(CatSystem::new(term_width, term_height)),
             // Foreground
             Box::new(RaindropSystem::new(

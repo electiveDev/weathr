@@ -28,6 +28,10 @@ fn simulate_parser() -> PossibleValuesParser {
     )
 }
 
+fn test_parser() -> PossibleValuesParser {
+    PossibleValuesParser::new([PossibleValue::new("bunny").help("Run the bunny animation test")])
+}
+
 #[derive(Parser)]
 #[command(version, long_version = LONG_VERSION, about = ABOUT, long_about = None)]
 pub struct Cli {
@@ -39,6 +43,16 @@ pub struct Cli {
         help = "Simulate weather condition (clear, rain, drizzle, snow, etc.)"
     )]
     pub simulate: Option<String>,
+
+    #[arg(
+        short = 't',
+        long,
+        value_name = "ANIMATION",
+        value_parser = test_parser(),
+        conflicts_with = "simulate",
+        help = "Run an offline animation test (bunny)"
+    )]
+    pub test: Option<String>,
 
     #[arg(
         short,
@@ -80,6 +94,12 @@ pub struct Cli {
     pub completions: Option<Shell>,
 }
 
+impl Cli {
+    pub fn is_bunny_test(&self) -> bool {
+        self.test.as_deref() == Some("bunny")
+    }
+}
+
 pub fn extract_simulate_missing_value(err: clap::Error) -> clap::Error {
     let msg = err.to_string();
     if msg.contains("--simulate") && msg.contains("value is required") {
@@ -112,4 +132,40 @@ pub fn print_simulate_help() {
     eprintln!("  weathr --simulate rain");
     eprintln!("  weathr --simulate snow --night");
     eprintln!("  weathr -s thunderstorm -n");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bunny_test_accepts_animation_name() {
+        let cli = Cli::try_parse_from(["weathr", "--test", "bunny"]).unwrap();
+
+        assert!(cli.is_bunny_test());
+        assert_eq!(cli.test.as_deref(), Some("bunny"));
+        assert_eq!(cli.simulate, None);
+    }
+
+    #[test]
+    fn bunny_test_accepts_night_mode() {
+        let cli = Cli::try_parse_from(["weathr", "-t", "bunny", "--night"]).unwrap();
+
+        assert!(cli.is_bunny_test());
+        assert!(cli.night);
+    }
+
+    #[test]
+    fn bunny_test_conflicts_with_weather_simulation() {
+        let result = Cli::try_parse_from(["weathr", "--test", "bunny", "--simulate", "clear"]);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn bunny_test_rejects_unknown_animation() {
+        let result = Cli::try_parse_from(["weathr", "--test", "cat"]);
+
+        assert!(result.is_err());
+    }
 }

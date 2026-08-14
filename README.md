@@ -71,7 +71,8 @@ live forecast data.
 Press F1 to show or hide the HUD location and quit hint (hidden by default); press q or Ctrl+C to exit.
 Clear weather has no cloud animation, while cloudy conditions do; dry daytime scenes can also show
 white bird animation. See the [feature reference](docs/FEATURES.md) for verified behavior and
-the [operations runbook](docs/OPERATIONS.md) for the tmux watchdog's safety contract.
+the [operations runbook](docs/OPERATIONS.md) for the tmux watchdog's safety contract. Use
+`weathr --help` for all options.
 
 ### Configuration
 

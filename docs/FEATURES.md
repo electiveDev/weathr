@@ -24,7 +24,7 @@ The world scene always contains the centered house and its ground, pond, fence, 
 - **Spring:** bright green daytime grass, green foliage, more frequent flowers, and a blossoming tree. The spring flower palette includes white as well as colored flowers.
 - **Summer:** green grass and full foliage, with a lower flower frequency than spring.
 - **Autumn:** yellow/brown ground and foliage, autumn-colored flowers, and an autumn tree with visible accent marks.
-- **Winter:** no flowers and a bare tree; the remaining foliage/ground colors use subdued brown tones.
+- **Winter:** no flowers and a bare tree; foliage uses subdued brown shades, while the base grass/ground palette remains day/night dependent.
 
 The seasonal world styling is separate from precipitation animations. For example, `--leaves` explicitly enables the falling-leaves foreground system; it is not silently enabled or disabled by the calendar season. Falling leaves are suppressed while rain, thunderstorms, or snow are active.
 

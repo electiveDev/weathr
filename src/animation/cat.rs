@@ -191,7 +191,7 @@ impl Cat {
         }
 
         let step = self.speed / distance;
-        self.x = self.x + dx * step;
+        self.x += dx * step;
         self.y = bounds.clamp_y(self.y + dy * step);
         self.update_direction();
         false

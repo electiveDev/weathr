@@ -6,6 +6,7 @@ use crate::render::TerminalRenderer;
 use crate::scene::overlay::OverlayRegistry;
 use crate::scene::world::WorldScene;
 use crate::scene::{SceneContext, SceneRegistry};
+use crate::season::Season;
 use crate::theme::ThemeRegistry;
 
 use crate::weather::provider::WeatherProvider;
@@ -132,6 +133,8 @@ pub struct App {
     active_overlay_id: Option<&'static str>,
     weather_receiver: mpsc::Receiver<Result<WeatherData, WeatherError>>,
     hide_hud: bool,
+    hide_hud_details: bool,
+    season: Season,
 }
 
 impl App {
@@ -254,13 +257,18 @@ impl App {
             active_overlay_id: bindings.overlay_id,
             weather_receiver: rx,
             hide_hud: config.hide_hud,
+            season: Season::local(),
+            hide_hud_details: true,
         }
+    }
+    pub(crate) fn set_season(&mut self, season: Season) {
+        self.season = season;
     }
 
     fn handle_key(&mut self, key_event: KeyEvent) -> bool {
         match key_event.code {
             KeyCode::F(1) => {
-                self.hide_hud = !self.hide_hud;
+                self.hide_hud_details = !self.hide_hud_details;
                 false
             }
             KeyCode::Char('q') | KeyCode::Char('Q') => true,
@@ -270,7 +278,11 @@ impl App {
     }
 
     fn hud_text(&self) -> Option<&str> {
-        (!self.hide_hud).then_some(self.state.cached_weather_info.as_str())
+        if self.hide_hud {
+            None
+        } else {
+            Some(self.state.hud_text(!self.hide_hud_details))
+        }
     }
 
     pub async fn run(&mut self, renderer: &mut TerminalRenderer) -> io::Result<()> {
@@ -350,6 +362,7 @@ impl App {
             let ctx = SceneContext {
                 conditions: &self.state.weather_conditions,
                 palette,
+                season: self.season,
             };
 
             self.animations.render_background(
@@ -414,11 +427,8 @@ impl App {
                         let (new_width, new_height) = renderer.get_size();
                         self.animations.on_resize(new_width, new_height);
                     }
-                    Event::Key(key_event) => {
-                        if self.handle_key(key_event) {
-                            break;
-                        }
-                    }
+                    Event::Key(key_event) if self.handle_key(key_event) => break,
+                    Event::Key(_) => {}
                     _ => {}
                 }
             }
@@ -450,24 +460,54 @@ mod tests {
     }
 
     #[test]
-    fn f1_toggles_hud_visibility_without_mutating_text_and_q_still_quits() {
+    fn f1_toggles_location_and_quit_segments_without_hiding_weather() {
         let mut app = test_app();
         app.state.update_cached_info();
 
-        let initial_text = app.hud_text().expect("HUD should start visible").to_owned();
-        assert!(initial_text.contains("Location:"));
-        assert!(initial_text.contains("Press 'q' to quit"));
+        let weather_only = app
+            .hud_text()
+            .expect("weather HUD should start visible")
+            .to_owned();
+        for fragment in ["Weather: Clear", "Temp:", "Wind:", "Precip:"] {
+            assert!(weather_only.contains(fragment), "missing {fragment}");
+        }
+        assert!(!weather_only.contains("Location:"));
+        assert!(!weather_only.contains("Press 'q' to quit"));
 
+        assert!(!app.handle_key(KeyEvent::new(KeyCode::F(1), KeyModifiers::NONE)));
+        let full_text = app.hud_text().expect("HUD details should show after F1");
+        assert!(full_text.contains("Location:"));
+        assert!(full_text.contains("Press 'q' to quit"));
+        for fragment in ["Weather: Clear", "Temp:", "Wind:", "Precip:"] {
+            assert!(full_text.contains(fragment), "missing {fragment}");
+        }
+        assert_eq!(app.state.cached_weather_info, full_text);
+
+        assert!(!app.handle_key(KeyEvent::new(KeyCode::F(1), KeyModifiers::NONE)));
+        let weather_only_again = app.hud_text().expect("weather HUD should stay visible");
+        assert_eq!(weather_only_again, weather_only);
+        assert!(!weather_only_again.contains("Location:"));
+        assert!(!weather_only_again.contains("Press 'q' to quit"));
+        assert!(app.handle_key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE)));
+    }
+    #[test]
+    fn config_hide_hud_still_hides_entire_line() {
+        let mut config = Config::default();
+        config.hide_hud = true;
+        let mut app = App::new(
+            &config,
+            Some("clear".to_string()),
+            false,
+            false,
+            80,
+            24,
+            ThemeRegistry::new(),
+        );
+        app.state.update_cached_info();
+
+        assert!(app.hud_text().is_none());
         assert!(!app.handle_key(KeyEvent::new(KeyCode::F(1), KeyModifiers::NONE)));
         assert!(app.hud_text().is_none());
-        assert_eq!(app.state.cached_weather_info, initial_text);
-
-        assert!(!app.handle_key(KeyEvent::new(KeyCode::F(1), KeyModifiers::NONE)));
-        assert_eq!(
-            app.hud_text().expect("HUD should be visible after F1"),
-            initial_text
-        );
-        assert!(app.handle_key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE)));
     }
 
     struct TestScene {

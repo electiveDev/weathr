@@ -221,13 +221,10 @@ impl AnimationSystem for CloudSystem {
     }
 
     fn is_active(&self, ctx: &FrameContext<'_>) -> bool {
-        let is_clear = ctx
-            .state
+        ctx.state
             .current_weather
             .as_ref()
-            .is_some_and(|w| matches!(w.condition, crate::weather::WeatherCondition::Clear));
-
-        ctx.conditions.is_cloudy || is_clear
+            .is_some_and(|weather| weather.condition.is_cloudy())
     }
 
     fn on_resize(&mut self, size: TerminalSize) {
@@ -260,5 +257,72 @@ impl AnimationSystem for CloudSystem {
         _ctx: &FrameContext<'_>,
     ) -> io::Result<()> {
         CloudSystem::render(self, renderer)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app_state::AppState;
+    use crate::config::LocationDisplay;
+    use crate::weather::types::CelestialEvents;
+    use crate::weather::{WeatherCondition, WeatherData, WeatherLocation, WeatherUnits};
+
+    fn weather(condition: WeatherCondition) -> WeatherData {
+        WeatherData {
+            condition,
+            temperature: 20.0,
+            precipitation: 0.0,
+            wind_speed: 5.0,
+            wind_direction: 0.0,
+            sun: CelestialEvents::from_bool(true),
+            moon_phase: None,
+            timestamp: "test".to_string(),
+            attribution: String::new(),
+        }
+    }
+
+    #[test]
+    fn clear_is_inactive_and_cloudy_conditions_are_active() {
+        let clouds = CloudSystem::new(80, 24);
+
+        for (condition, expected_active) in [
+            (WeatherCondition::Clear, false),
+            (WeatherCondition::PartlyCloudy, true),
+            (WeatherCondition::Cloudy, true),
+            (WeatherCondition::Overcast, true),
+        ] {
+            let location = WeatherLocation {
+                latitude: 0.0,
+                longitude: 0.0,
+                elevation: None,
+            };
+            let mut state = AppState::new(
+                location,
+                None,
+                LocationDisplay::Coordinates,
+                false,
+                WeatherUnits::metric(),
+            );
+            state.update_weather(weather(condition));
+
+            let ctx = FrameContext {
+                size: TerminalSize {
+                    width: 80,
+                    height: 24,
+                },
+                horizon_y: 18,
+                conditions: &state.weather_conditions,
+                state: &state,
+                show_leaves: false,
+                chimney: None,
+            };
+
+            assert_eq!(
+                clouds.is_active(&ctx),
+                expected_active,
+                "unexpected cloud activity for {condition:?}"
+            );
+        }
     }
 }

@@ -74,7 +74,7 @@ impl Scene for WorldScene {
             &style,
         )?;
         // The pond belongs to the scene, not the animation manager. It is
-        // therefore stable across frames and is painted behind every animal.
+        // therefore stable across frames and painted behind the decorations.
         self.ground.render_pond(
             renderer,
             pond_bounds(self.width, self.height, layout.ground_y),

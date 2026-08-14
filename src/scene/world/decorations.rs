@@ -1,11 +1,15 @@
 use crate::render::TerminalRenderer;
-use crate::scene::world::style::WorldSceneStyle;
+use crate::scene::world::style::{TreeAppearance, WorldSceneStyle};
 use std::io;
 
 const TREE_ASCII: &str = include_str!("assets/tree.txt");
 const FENCE_ASCII: &str = include_str!("assets/fence.txt");
 const MAILBOX_ASCII: &str = include_str!("assets/mailbox.txt");
 const PINE_TREE_ASCII: &str = include_str!("assets/pine_tree.txt");
+const BARE_TREE_ASCII: &str =
+    "       |       \n      /|\\      \n       |       \n       |       \n     __|__";
+const TREE_ACCENT_SPOTS: [(u16, u16); 7] =
+    [(7, 0), (5, 1), (10, 1), (4, 2), (11, 2), (7, 3), (10, 3)];
 
 pub struct Decorations;
 
@@ -44,11 +48,28 @@ impl Decorations {
         if tree_x == 0 {
             return Ok(());
         }
-        let line_count = TREE_ASCII.lines().count() as u16;
+        let (tree_ascii, accent) = match style.tree_appearance {
+            TreeAppearance::Bare => (BARE_TREE_ASCII, None),
+            TreeAppearance::Blossoming | TreeAppearance::Autumn => (TREE_ASCII, Some('*')),
+            TreeAppearance::Full => (TREE_ASCII, None),
+        };
+        let line_count = tree_ascii.lines().count() as u16;
         let tree_y = layout.horizon_y.saturating_sub(line_count);
-        render_art(renderer, TREE_ASCII, tree_x, tree_y, style.tree_foliage)
-    }
+        render_art(renderer, tree_ascii, tree_x, tree_y, style.tree_foliage)?;
 
+        if let Some(symbol) = accent {
+            for (index, (offset_x, offset_y)) in TREE_ACCENT_SPOTS.iter().enumerate() {
+                renderer.render_char(
+                    tree_x.saturating_add(*offset_x),
+                    tree_y.saturating_add(*offset_y),
+                    symbol,
+                    style.flower_colors[index % style.flower_colors.len()],
+                )?;
+            }
+        }
+
+        Ok(())
+    }
     fn render_fence(
         &self,
         renderer: &mut TerminalRenderer,

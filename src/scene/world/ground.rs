@@ -23,7 +23,7 @@ impl Ground {
             for x in 0..width {
                 let r = pseudo_rand(x, y);
                 let (ch, color) = if y == 0 {
-                    if r < 5 {
+                    if r < style.flower_chance {
                         (
                             '*',
                             style.flower_colors[(x + y) % style.flower_colors.len()],

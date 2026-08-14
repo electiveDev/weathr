@@ -11,6 +11,7 @@ pub struct AppState {
     pub weather_conditions: WeatherConditions,
     pub loading_state: LoadingState,
     pub cached_weather_info: String,
+    hud_details_start: usize,
     pub weather_info_needs_update: bool,
     pub location: WeatherLocation,
     pub city_name: Option<String>,
@@ -32,6 +33,7 @@ impl AppState {
             is_offline: false,
             weather_conditions: WeatherConditions::default(),
             loading_state: LoadingState::new(),
+            hud_details_start: 0,
             cached_weather_info: String::new(),
             weather_info_needs_update: true,
             location,
@@ -124,16 +126,15 @@ impl AppState {
             format!(" | Location: {}", label)
         };
 
-        self.cached_weather_info = if let Some(ref weather) = self.current_weather {
+        if let Some(weather) = &self.current_weather {
             let (temp, temp_unit) = format_temperature(weather.temperature, self.units.temperature);
             let (wind, wind_unit) = format_wind_speed(weather.wind_speed, self.units.wind_speed);
             let (precip, precip_unit) =
                 format_precipitation(weather.precipitation, self.units.precipitation);
 
             let offline_indicator = if self.is_offline { "OFFLINE | " } else { "" };
-
-            format!(
-                "{}Weather: {} | Temp: {:.1}{} | Wind: {:.1}{} | Precip: {:.1}{}{} | Press 'q' to quit",
+            let mut weather_info = format!(
+                "{}Weather: {} | Temp: {:.1}{} | Wind: {:.1}{} | Precip: {:.1}{}",
                 offline_indicator,
                 self.get_condition_text(),
                 temp,
@@ -142,13 +143,27 @@ impl AppState {
                 wind_unit,
                 precip,
                 precip_unit,
-                location_str
-            )
+            );
+
+            self.hud_details_start = weather_info.len();
+            weather_info.push_str(&location_str);
+            weather_info.push_str(" | Press 'q' to quit");
+            self.cached_weather_info = weather_info;
         } else {
-            format!("Weather: Loading... {}", self.loading_state.current_char())
-        };
+            self.cached_weather_info =
+                format!("Weather: Loading... {}", self.loading_state.current_char());
+            self.hud_details_start = self.cached_weather_info.len();
+        }
 
         self.weather_info_needs_update = false;
+    }
+
+    pub fn hud_text(&self, show_details: bool) -> &str {
+        if show_details {
+            &self.cached_weather_info
+        } else {
+            &self.cached_weather_info[..self.hud_details_start]
+        }
     }
 
     pub fn should_show_sun(&self) -> bool {

@@ -2,6 +2,7 @@ pub mod overlay;
 pub mod world;
 
 use crate::render::TerminalRenderer;
+use crate::season::Season;
 use crate::theme::Palette;
 use crate::weather::WeatherConditions;
 use std::collections::HashMap;
@@ -10,6 +11,7 @@ use std::io;
 pub struct SceneContext<'a> {
     pub conditions: &'a WeatherConditions,
     pub palette: &'a Palette,
+    pub season: Season,
 }
 
 /// The inclusive rectangle covering the meadow and brown ground rendered by

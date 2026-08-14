@@ -8,5 +8,6 @@ pub mod error;
 pub mod geolocation;
 pub mod render;
 pub mod scene;
+pub mod season;
 pub mod theme;
 pub mod weather;

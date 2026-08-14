@@ -57,10 +57,18 @@ weathr
 weathr --auto-location
 weathr --simulate rain
 weathr --simulate snow --night
+weathr --simulate clear --season spring
+weathr --simulate clear --season summer
+weathr --simulate clear --season autumn
+weathr --simulate clear --season winter
 ```
 
-Press F1 to toggle the HUD (weather/location status line); press q or Ctrl+C to exit. Use `weathr --help` for all options. Simulation mode previews
+`--season` follows the local calendar by default (spring: March-May, summer: June-August,
+autumn: September-November, winter: December-February); pass it to override the season
+for an offline preview. Simulation mode previews
 weather scenes without requesting live forecast data.
+
+Press F1 to show or hide the HUD location and quit hint (hidden by default); press q or Ctrl+C to exit. Use `weathr --help` for all options.
 
 ### Configuration
 

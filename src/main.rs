@@ -8,6 +8,9 @@ mod error;
 mod geolocation;
 mod render;
 mod scene;
+mod season {
+    pub use weathr::season::Season;
+}
 mod theme;
 mod weather;
 
@@ -20,6 +23,7 @@ use crossterm::{
     terminal::{LeaveAlternateScreen, disable_raw_mode},
 };
 use render::TerminalRenderer;
+use season::Season;
 use std::{io, panic};
 use theme::ThemeRegistry;
 use weathr::cli::{self, Cli};
@@ -96,6 +100,7 @@ async fn main() -> io::Result<()> {
     if cli.silent {
         config.silent = true;
     }
+    let season = cli.season.unwrap_or_else(Season::local);
 
     let lat_from_env = std::env::var(config::ENV_LATITUDE).is_ok();
     let lon_from_env = std::env::var(config::ENV_LONGITUDE).is_ok();
@@ -205,6 +210,7 @@ async fn main() -> io::Result<()> {
         term_height,
         theme_registry,
     );
+    app.set_season(season);
 
     let result = tokio::select! {
         res = app.run(&mut renderer) => res,

@@ -2,6 +2,7 @@ use clap::Parser;
 use clap::builder::{PossibleValue, PossibleValuesParser};
 use clap_complete::Shell;
 
+use crate::season::Season;
 use crate::weather::WeatherCondition;
 
 const LONG_VERSION: &str = concat!(
@@ -46,6 +47,14 @@ pub struct Cli {
         help = "Simulate night time (for testing moon, stars, fireflies)"
     )]
     pub night: bool,
+
+    #[arg(
+        long,
+        value_name = "SEASON",
+        value_enum,
+        help = "Force season (spring, summer, autumn, winter)"
+    )]
+    pub season: Option<Season>,
 
     #[arg(short, long, help = "Enable falling autumn leaves")]
     pub leaves: bool,
@@ -112,4 +121,27 @@ pub fn print_simulate_help() {
     eprintln!("  weathr --simulate rain");
     eprintln!("  weathr --simulate snow --night");
     eprintln!("  weathr -s thunderstorm -n");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_all_season_values() {
+        for (value, expected) in [
+            ("spring", Season::Spring),
+            ("summer", Season::Summer),
+            ("autumn", Season::Autumn),
+            ("winter", Season::Winter),
+        ] {
+            let cli = Cli::try_parse_from(["weathr", "--season", value]).unwrap();
+            assert_eq!(cli.season, Some(expected));
+        }
+    }
+
+    #[test]
+    fn rejects_unknown_season() {
+        assert!(Cli::try_parse_from(["weathr", "--season", "monsoon"]).is_err());
+    }
 }

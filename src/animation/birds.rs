@@ -69,7 +69,7 @@ impl BirdSystem {
             let x = bird.x as u16;
             let y = bird.y as u16;
             if x < self.terminal_width && y < self.terminal_height {
-                renderer.render_char(x, y, bird.character, Color::Yellow)?;
+                renderer.render_char(x, y, bird.character, Color::White)?;
             }
         }
         Ok(())

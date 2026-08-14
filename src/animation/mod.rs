@@ -1,5 +1,7 @@
 pub mod airplanes;
 pub mod birds;
+pub mod cat;
+pub mod chickens;
 pub mod chimney;
 pub mod clouds;
 pub mod fireflies;

@@ -11,7 +11,7 @@ repository's changes select DWD's global ICON model as the default weather model
 
 A terminal weather app with ASCII animations driven by real-time weather data.
 
-Features real-time weather from the DWD's global ICON model via Open-Meteo, with animated rain, snow, thunderstorms, flying airplanes, day/night cycles, and auto-location detection.
+Features real-time weather from the DWD's global ICON model via Open-Meteo, with animated rain, snow, thunderstorms, flying airplanes, day/night cycles, animated chickens and a roaming cat in the farm scene, and auto-location detection.
 
 ## Demo
 

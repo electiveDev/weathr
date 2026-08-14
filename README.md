@@ -59,7 +59,7 @@ weathr --simulate rain
 weathr --simulate snow --night
 ```
 
-Press `q` or `Ctrl+C` to exit. Use `weathr --help` for all options. Simulation mode previews
+Press F1 to toggle the HUD (weather/location status line); press q or Ctrl+C to exit. Use `weathr --help` for all options. Simulation mode previews
 weather scenes without requesting live forecast data.
 
 ### Configuration

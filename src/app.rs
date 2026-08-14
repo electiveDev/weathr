@@ -15,7 +15,7 @@ use crate::weather::{
     IconGlobalProvider, OpenMeteoProvider, WeatherClient, WeatherCondition, WeatherData,
     WeatherLocation,
 };
-use crossterm::event::{self, Event, KeyCode, KeyModifiers};
+use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
 use serde::Deserialize;
 use std::io;
 use std::sync::Arc;
@@ -257,6 +257,22 @@ impl App {
         }
     }
 
+    fn handle_key(&mut self, key_event: KeyEvent) -> bool {
+        match key_event.code {
+            KeyCode::F(1) => {
+                self.hide_hud = !self.hide_hud;
+                false
+            }
+            KeyCode::Char('q') | KeyCode::Char('Q') => true,
+            KeyCode::Char('c') if key_event.modifiers.contains(KeyModifiers::CONTROL) => true,
+            _ => false,
+        }
+    }
+
+    fn hud_text(&self) -> Option<&str> {
+        (!self.hide_hud).then_some(self.state.cached_weather_info.as_str())
+    }
+
     pub async fn run(&mut self, renderer: &mut TerminalRenderer) -> io::Result<()> {
         let mut rng = rand::rng();
         let mut attribution = "Awaiting weather data".to_string();
@@ -372,13 +388,8 @@ impl App {
             self.state.update_loading_animation();
             self.state.update_cached_info();
 
-            if !self.hide_hud {
-                renderer.render_line_colored(
-                    2,
-                    1,
-                    &self.state.cached_weather_info,
-                    crossterm::style::Color::Cyan,
-                )?;
+            if let Some(hud_text) = self.hud_text() {
+                renderer.render_line_colored(2, 1, hud_text, crossterm::style::Color::Cyan)?;
             }
 
             let attribution_x = if term_width > attribution.len() as u16 {
@@ -403,15 +414,11 @@ impl App {
                         let (new_width, new_height) = renderer.get_size();
                         self.animations.on_resize(new_width, new_height);
                     }
-                    Event::Key(key_event) => match key_event.code {
-                        KeyCode::Char('q') | KeyCode::Char('Q') => break,
-                        KeyCode::Char('c')
-                            if key_event.modifiers.contains(KeyModifiers::CONTROL) =>
-                        {
+                    Event::Key(key_event) => {
+                        if self.handle_key(key_event) {
                             break;
                         }
-                        _ => {}
-                    },
+                    }
                     _ => {}
                 }
             }
@@ -430,6 +437,38 @@ mod tests {
     use crate::theme::catalogue::DEFAULT_PALETTE;
     use crate::theme::{Theme, ThemeRegistry};
     use std::io;
+    fn test_app() -> App {
+        App::new(
+            &Config::default(),
+            Some("clear".to_string()),
+            false,
+            false,
+            80,
+            24,
+            ThemeRegistry::new(),
+        )
+    }
+
+    #[test]
+    fn f1_toggles_hud_visibility_without_mutating_text_and_q_still_quits() {
+        let mut app = test_app();
+        app.state.update_cached_info();
+
+        let initial_text = app.hud_text().expect("HUD should start visible").to_owned();
+        assert!(initial_text.contains("Location:"));
+        assert!(initial_text.contains("Press 'q' to quit"));
+
+        assert!(!app.handle_key(KeyEvent::new(KeyCode::F(1), KeyModifiers::NONE)));
+        assert!(app.hud_text().is_none());
+        assert_eq!(app.state.cached_weather_info, initial_text);
+
+        assert!(!app.handle_key(KeyEvent::new(KeyCode::F(1), KeyModifiers::NONE)));
+        assert_eq!(
+            app.hud_text().expect("HUD should be visible after F1"),
+            initial_text
+        );
+        assert!(app.handle_key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE)));
+    }
 
     struct TestScene {
         id: &'static str,

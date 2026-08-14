@@ -15,6 +15,8 @@ pub struct WorldSceneStyle {
     pub tree_foliage: Color,
     pub fence: Color,
     pub mailbox: Color,
+    pub water: Color,
+    pub water_edge: Color,
 }
 
 impl WorldSceneStyle {
@@ -43,6 +45,8 @@ impl WorldSceneStyle {
                 tree_foliage: Color::DarkGreen,
                 fence: Color::White,
                 mailbox: Color::Blue,
+                water: Color::Blue,
+                water_edge: Color::Cyan,
             }
         } else {
             Self {
@@ -67,14 +71,16 @@ impl WorldSceneStyle {
                     Color::Blue,
                     Color::DarkYellow,
                 ],
+                tree_foliage: Color::Rgb { r: 0, g: 50, b: 0 },
+                fence: Color::Grey,
+                mailbox: Color::DarkBlue,
                 soil: Color::Rgb {
                     r: 60,
                     g: 40,
                     b: 20,
                 },
-                tree_foliage: Color::Rgb { r: 0, g: 50, b: 0 },
-                fence: Color::Grey,
-                mailbox: Color::DarkBlue,
+                water: Color::DarkBlue,
+                water_edge: Color::Blue,
             }
         }
     }

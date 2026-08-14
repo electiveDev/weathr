@@ -4,7 +4,7 @@ mod house;
 mod style;
 
 use crate::render::TerminalRenderer;
-use crate::scene::{ChimneyPosition, Scene, SceneContext, SceneLayout};
+use crate::scene::{ChimneyPosition, Scene, SceneContext, SceneLayout, pond_bounds};
 use decorations::{DecorationLayout, Decorations};
 use ground::Ground;
 use house::House;
@@ -71,6 +71,13 @@ impl Scene for WorldScene {
             self.width,
             Self::GROUND_HEIGHT,
             layout.ground_y,
+            &style,
+        )?;
+        // The pond belongs to the scene, not the animation manager. It is
+        // therefore stable across frames and is painted behind every animal.
+        self.ground.render_pond(
+            renderer,
+            pond_bounds(self.width, self.height, layout.ground_y),
             &style,
         )?;
         self.house.render(renderer, house_x, house_y, &style)?;

@@ -1,12 +1,19 @@
 use crate::animation::{AnimationSystem, FrameCommands, FrameContext, RenderLayer, TerminalSize};
 use crate::render::TerminalRenderer;
+use crate::scene::{LawnBounds, lawn_bounds};
 use crossterm::style::Color;
-use rand::Rng;
+use rand::{Rng, RngExt};
 use std::io;
 
 const FRAME_STEP: u8 = 5;
-const SPRITE_WIDTH: u16 = 9;
-const SPRITE_HEIGHT: u16 = 3;
+pub const SPRITE_WIDTH: u16 = 9;
+pub const SPRITE_HEIGHT: u16 = 3;
+const SLEEP_MIN: u16 = 180;
+const SLEEP_MAX: u16 = 520;
+const WALK_MIN: u16 = 55;
+const WALK_MAX: u16 = 150;
+const RETURN_TIMEOUT: u16 = 500;
+
 const CAT_WALK_FRAMES: [[&str; 3]; 4] = [
     [" /\\_/\\\\  ", "( o.o )__", "  / \\    "],
     [" /\\_/\\\\  ", "( o.o )_/", "   /\\    "],
@@ -19,52 +26,254 @@ const CAT_SLEEP_FRAMES: [[&str; 3]; 3] = [
     [" /\\_/\\\\  ", "( o.o )__", "  > ^ <  "],
 ];
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CatActivity {
+    Sleeping,
+    Wandering,
+    Hunting,
+    Returning,
+}
+
+#[derive(Clone, Copy)]
+struct AnchorBounds {
+    left: u16,
+    right: u16,
+    top: u16,
+    bottom: u16,
+}
+
+impl AnchorBounds {
+    fn from_lawn(lawn: LawnBounds) -> Option<Self> {
+        if lawn.width() < SPRITE_WIDTH || lawn.height() < SPRITE_HEIGHT {
+            return None;
+        }
+        Some(Self {
+            left: lawn.left,
+            right: lawn.right.saturating_sub(SPRITE_WIDTH - 1),
+            top: lawn.top,
+            bottom: lawn.bottom.saturating_sub(SPRITE_HEIGHT - 1),
+        })
+    }
+
+    fn clamp_x(self, x: f32) -> f32 {
+        x.clamp(self.left as f32, self.right as f32)
+    }
+
+    fn clamp_y(self, y: f32) -> f32 {
+        y.clamp(self.top as f32, self.bottom as f32)
+    }
+}
+
 struct Cat {
     x: f32,
+    y: f32,
+    sleep_x: f32,
+    sleep_y: f32,
+    target_x: f32,
+    target_y: f32,
     direction: i8,
     speed: f32,
+    state: CatActivity,
+    state_timer: u16,
     frame_index: usize,
     frame_tick: u8,
-    sleeping: bool,
 }
 
 impl Cat {
     fn new(terminal_width: u16) -> Self {
-        let max_x = max_x(terminal_width);
-        let x = (max_x / 2).max(1) as f32;
+        let sleep_x = terminal_width.saturating_sub(SPRITE_WIDTH) as f32 / 2.0;
         Self {
-            x,
-            direction: -1,
-            speed: 0.07,
+            x: sleep_x,
+            y: 0.0,
+            sleep_x,
+            sleep_y: 0.0,
+            target_x: sleep_x,
+            target_y: 0.0,
+            direction: 1,
+            speed: 0.48,
+            state: CatActivity::Sleeping,
+            state_timer: SLEEP_MIN,
             frame_index: 0,
             frame_tick: 0,
-            sleeping: false,
         }
     }
 
-    fn advance(&mut self, terminal_width: u16, is_day: bool) {
-        self.sleeping = !is_day;
-        let max_x = max_x(terminal_width) as f32;
+    fn set_lawn_spot(&mut self, bounds: AnchorBounds, initial: bool) {
+        let new_sleep_x = (bounds.left as f32 + bounds.right as f32) / 2.0;
+        let new_sleep_y = bounds.bottom as f32;
+        if initial {
+            self.sleep_x = new_sleep_x;
+            self.sleep_y = new_sleep_y;
+            self.x = self.sleep_x;
+            self.y = self.sleep_y;
+            self.target_x = self.sleep_x;
+            self.target_y = self.sleep_y;
+        } else {
+            self.sleep_x = bounds.clamp_x(new_sleep_x);
+            self.sleep_y = bounds.clamp_y(new_sleep_y);
+            if self.state == CatActivity::Sleeping {
+                self.x = self.sleep_x;
+                self.y = self.sleep_y;
+            } else if self.state == CatActivity::Returning {
+                self.target_x = self.sleep_x;
+                self.target_y = self.sleep_y;
+                self.update_direction();
+            }
+        }
+    }
 
-        if !self.sleeping && max_x > 1.0 {
-            self.x += self.speed * self.direction as f32;
-            if self.x <= 1.0 {
-                self.x = 1.0;
-                self.direction = 1;
-            } else if self.x >= max_x {
-                self.x = max_x;
-                self.direction = -1;
+    fn reset_animation(&mut self) {
+        self.frame_index = 0;
+        self.frame_tick = 0;
+    }
+
+    fn choose_sleep_duration(&mut self, rng: &mut (impl Rng + ?Sized)) {
+        self.state_timer = rng.random_range(SLEEP_MIN..=SLEEP_MAX);
+    }
+
+    fn update_direction(&mut self) {
+        let dx = self.target_x - self.x;
+        if dx > 0.05 {
+            self.direction = 1;
+        } else if dx < -0.05 {
+            self.direction = -1;
+        }
+    }
+
+    fn start_wandering(&mut self, bounds: AnchorBounds, rng: &mut (impl Rng + ?Sized)) {
+        self.state = CatActivity::Wandering;
+        self.state_timer = rng.random_range(WALK_MIN..=WALK_MAX);
+        self.target_x = rng.random_range(bounds.left..=bounds.right) as f32;
+        self.target_y = rng.random_range(bounds.top..=bounds.bottom) as f32;
+        self.update_direction();
+        self.reset_animation();
+    }
+
+    fn start_hunting(&mut self, rng: &mut (impl Rng + ?Sized)) {
+        self.state = CatActivity::Hunting;
+        self.direction = if rng.random_bool(0.5) { -1 } else { 1 };
+        self.state_timer = RETURN_TIMEOUT;
+        self.reset_animation();
+    }
+
+    fn start_returning(&mut self) {
+        self.state = CatActivity::Returning;
+        self.state_timer = RETURN_TIMEOUT;
+        self.target_x = self.sleep_x;
+        self.target_y = self.sleep_y;
+        self.update_direction();
+        self.reset_animation();
+    }
+
+    fn move_towards_target(&mut self, bounds: AnchorBounds) -> bool {
+        let dx = self.target_x - self.x;
+        let dy = self.target_y - self.y;
+        let distance = (dx * dx + dy * dy).sqrt();
+        if distance <= self.speed.max(0.05) {
+            self.x = self.target_x;
+            self.y = self.target_y;
+            return true;
+        }
+
+        let step = self.speed / distance;
+        self.x = self.x + dx * step;
+        self.y = bounds.clamp_y(self.y + dy * step);
+        self.update_direction();
+        false
+    }
+
+    fn finish_return(&mut self, rng: &mut (impl Rng + ?Sized)) {
+        self.x = self.sleep_x;
+        self.y = self.sleep_y;
+        self.state = CatActivity::Sleeping;
+        self.direction = 1;
+        self.choose_sleep_duration(rng);
+        self.reset_animation();
+    }
+
+    fn advance(
+        &mut self,
+        lawn: LawnBounds,
+        terminal_width: u16,
+        is_day: bool,
+        weather_safe: bool,
+        rng: &mut (impl Rng + ?Sized),
+    ) {
+        let Some(bounds) = AnchorBounds::from_lawn(lawn) else {
+            return;
+        };
+        let initial_spot = self.sleep_y == 0.0;
+        self.set_lawn_spot(bounds, initial_spot);
+
+        let outdoor_allowed = is_day && weather_safe;
+        if !outdoor_allowed && !matches!(self.state, CatActivity::Sleeping | CatActivity::Returning)
+        {
+            self.start_returning();
+        }
+
+        match self.state {
+            CatActivity::Sleeping => {
+                self.x = self.sleep_x;
+                self.y = self.sleep_y;
+                if outdoor_allowed {
+                    if self.state_timer == 0 {
+                        // A cat is usually asleep. Only a minority of wakeups
+                        // become an outing, and the choice is persistent until
+                        // the outing timer/state completes.
+                        if rng.random_range(0..100u8) < 24 {
+                            if rng.random_bool(0.30) {
+                                self.start_hunting(rng);
+                            } else {
+                                self.start_wandering(bounds, rng);
+                            }
+                        } else {
+                            self.choose_sleep_duration(rng);
+                        }
+                    } else {
+                        self.state_timer = self.state_timer.saturating_sub(1);
+                    }
+                }
+            }
+            CatActivity::Wandering => {
+                if !outdoor_allowed {
+                    self.start_returning();
+                } else if self.state_timer == 0 || self.move_towards_target(bounds) {
+                    if rng.random_range(0..100u8) < 28 {
+                        self.start_hunting(rng);
+                    } else {
+                        self.start_returning();
+                    }
+                } else {
+                    self.state_timer = self.state_timer.saturating_sub(1);
+                }
+            }
+            CatActivity::Hunting => {
+                self.x += self.speed * self.direction as f32;
+                self.state_timer = self.state_timer.saturating_sub(1);
+                let off_left = self.x <= -(SPRITE_WIDTH as f32);
+                let off_right = self.x >= terminal_width as f32;
+                if off_left || off_right || self.state_timer == 0 || !outdoor_allowed {
+                    self.start_returning();
+                }
+            }
+            CatActivity::Returning => {
+                if self.move_towards_target(bounds) {
+                    self.finish_return(rng);
+                } else {
+                    self.state_timer = self.state_timer.saturating_sub(1);
+                    // Never resolve an overdue return by teleporting. The
+                    // timer only prevents a stale state from living forever;
+                    // a long return gets another movement window.
+                    if self.state_timer == 0 {
+                        self.state_timer = RETURN_TIMEOUT;
+                    }
+                }
             }
         }
 
         self.frame_tick = self.frame_tick.saturating_add(1);
         if self.frame_tick >= FRAME_STEP {
-            let frame_count = if self.sleeping {
-                CAT_SLEEP_FRAMES.len()
-            } else {
-                CAT_WALK_FRAMES.len()
-            };
-            self.frame_index = (self.frame_index + 1) % frame_count;
+            self.frame_index = self.frame_index.saturating_add(1);
             self.frame_tick = 0;
         }
     }
@@ -73,31 +282,16 @@ impl Cat {
 pub struct CatSystem {
     cat: Cat,
     terminal_width: u16,
+    terminal_height: u16,
 }
 
 impl CatSystem {
-    pub fn new(terminal_width: u16, _terminal_height: u16) -> Self {
+    pub fn new(terminal_width: u16, terminal_height: u16) -> Self {
         Self {
             cat: Cat::new(terminal_width),
             terminal_width,
+            terminal_height,
         }
-    }
-
-    fn render_cat(&self, renderer: &mut TerminalRenderer, ground_y: u16) -> io::Result<()> {
-        let y = ground_y.saturating_sub(SPRITE_HEIGHT - 1);
-        let frames: &[[&str; 3]] = if self.cat.sleeping {
-            &CAT_SLEEP_FRAMES
-        } else {
-            &CAT_WALK_FRAMES
-        };
-        let frame = &frames[self.cat.frame_index % frames.len()];
-        render_sprite(
-            renderer,
-            frame,
-            self.cat.x.max(0.0) as u16,
-            y,
-            self.cat.direction,
-        )
     }
 }
 
@@ -110,20 +304,44 @@ impl AnimationSystem for CatSystem {
         RenderLayer::Foreground
     }
 
-    fn on_resize(&mut self, size: TerminalSize) {
-        self.terminal_width = size.width;
-        self.cat.x = self.cat.x.clamp(1.0, max_x(size.width).max(1) as f32);
+    fn is_active(&self, _ctx: &FrameContext<'_>) -> bool {
+        // The cat also needs updates during rain/night to return home instead
+        // of being hidden in an off-screen state forever.
+        true
     }
 
-    fn update(
-        &mut self,
-        ctx: &FrameContext<'_>,
-        _rng: &mut dyn Rng,
-        _commands: &mut FrameCommands,
-    ) {
+    fn on_resize(&mut self, size: TerminalSize) {
+        self.terminal_width = size.width;
+        self.terminal_height = size.height;
+        let max_y = size.height.saturating_sub(1) as f32;
+        self.cat.y = self.cat.y.clamp(0.0, max_y);
+        self.cat.sleep_x = self
+            .cat
+            .sleep_x
+            .clamp(0.0, size.width.saturating_sub(SPRITE_WIDTH) as f32);
+        self.cat.target_x = self
+            .cat
+            .target_x
+            .clamp(-(SPRITE_WIDTH as f32), size.width as f32);
+        self.cat.target_y = self.cat.target_y.clamp(0.0, max_y);
+    }
+
+    fn update(&mut self, ctx: &FrameContext<'_>, rng: &mut dyn Rng, _commands: &mut FrameCommands) {
         self.terminal_width = ctx.size.width;
-        self.cat
-            .advance(self.terminal_width, ctx.conditions.sun.is_day);
+        self.terminal_height = ctx.size.height;
+        let Some(lawn) = lawn_bounds(ctx.size.width, ctx.size.height, ctx.horizon_y) else {
+            return;
+        };
+        let weather_safe = !ctx.conditions.is_raining
+            && !ctx.conditions.is_snowing
+            && !ctx.conditions.is_thunderstorm;
+        self.cat.advance(
+            lawn,
+            ctx.size.width,
+            ctx.conditions.sun.is_day,
+            weather_safe,
+            rng,
+        );
     }
 
     fn render(
@@ -131,42 +349,77 @@ impl AnimationSystem for CatSystem {
         renderer: &mut TerminalRenderer,
         ctx: &FrameContext<'_>,
     ) -> io::Result<()> {
-        self.render_cat(renderer, ctx.horizon_y)
+        let Some(lawn) = lawn_bounds(ctx.size.width, ctx.size.height, ctx.horizon_y) else {
+            return Ok(());
+        };
+        let Some(bounds) = AnchorBounds::from_lawn(lawn) else {
+            return Ok(());
+        };
+        if self.cat.y < bounds.top as f32 || self.cat.y > bounds.bottom as f32 {
+            return Ok(());
+        }
+        let frames: &[[&str; 3]] = if self.cat.state == CatActivity::Sleeping {
+            &CAT_SLEEP_FRAMES
+        } else {
+            &CAT_WALK_FRAMES
+        };
+        let frame = &frames[self.cat.frame_index % frames.len()];
+        render_sprite(
+            renderer,
+            frame,
+            self.cat.x,
+            self.cat.y,
+            self.cat.direction,
+            ctx.size.width,
+            ctx.size.height,
+        )
     }
-}
-
-fn max_x(width: u16) -> u16 {
-    width.saturating_sub(SPRITE_WIDTH + 1)
 }
 
 fn render_sprite(
     renderer: &mut TerminalRenderer,
     frame: &[&str; 3],
-    x: u16,
-    y: u16,
+    x: f32,
+    y: f32,
     direction: i8,
+    terminal_width: u16,
+    terminal_height: u16,
 ) -> io::Result<()> {
+    if !x.is_finite() || !y.is_finite() {
+        return Ok(());
+    }
+    let anchor_x = x.floor().clamp(i32::MIN as f32, i32::MAX as f32) as i32;
+    let anchor_y = y.floor().clamp(i32::MIN as f32, i32::MAX as f32) as i32;
+    let width = terminal_width as i32;
+    let height = terminal_height as i32;
+
     for (row, line) in frame.iter().enumerate() {
-        let line_width = line.chars().count() as u16;
+        let line_width = line.chars().count() as i32;
+        let draw_y = anchor_y + row as i32;
+        if draw_y < 0 || draw_y >= height {
+            continue;
+        }
         for (column, source_char) in line.chars().enumerate() {
             if source_char == ' ' {
                 continue;
             }
-
             let character = if direction < 0 {
                 mirror_char(source_char)
             } else {
                 source_char
             };
-            let column = column as u16;
+            let column = column as i32;
             let draw_x = if direction < 0 {
-                x.saturating_add(line_width.saturating_sub(1).saturating_sub(column))
+                anchor_x + line_width.saturating_sub(1).saturating_sub(column)
             } else {
-                x.saturating_add(column)
+                anchor_x + column
             };
+            if draw_x < 0 || draw_x >= width {
+                continue;
+            }
             renderer.render_char(
-                draw_x,
-                y.saturating_add(row as u16),
+                draw_x as u16,
+                draw_y as u16,
                 character,
                 cat_color(character),
             )?;
@@ -198,6 +451,12 @@ fn cat_color(character: char) -> Color {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rand::SeedableRng;
+    use rand::rngs::StdRng;
+
+    fn test_lawn() -> LawnBounds {
+        lawn_bounds(80, 24, 17).unwrap()
+    }
 
     #[test]
     fn cat_frames_have_fixed_dimensions() {
@@ -211,15 +470,74 @@ mod tests {
     }
 
     #[test]
-    fn cat_sleeps_at_night_and_wakes_during_day() {
+    fn cat_sleeps_mostly_and_does_not_redecide_each_frame() {
         let mut cat = Cat::new(80);
-        cat.advance(80, false);
-        assert!(cat.sleeping);
-        let sleeping_x = cat.x;
+        let lawn = test_lawn();
+        let mut rng = StdRng::seed_from_u64(21);
+        cat.advance(lawn, 80, true, true, &mut rng);
+        assert_eq!(cat.state, CatActivity::Sleeping);
+        let timer = cat.state_timer;
+        cat.advance(lawn, 80, true, true, &mut rng);
+        assert_eq!(cat.state, CatActivity::Sleeping);
+        assert_eq!(cat.state_timer, timer.saturating_sub(1));
+    }
 
-        cat.advance(80, true);
-        assert!(!cat.sleeping);
-        assert_ne!(cat.x, sleeping_x);
+    #[test]
+    fn cat_hunting_can_leave_screen_and_returns_to_sleep_spot() {
+        let lawn = test_lawn();
+        let mut cat = Cat::new(80);
+        let mut rng = StdRng::seed_from_u64(1);
+        cat.advance(lawn, 80, true, true, &mut rng);
+        let bounds = AnchorBounds::from_lawn(lawn).unwrap();
+        cat.set_lawn_spot(bounds, false);
+        cat.state = CatActivity::Hunting;
+        cat.direction = -1;
+        cat.x = -(SPRITE_WIDTH as f32 + 0.5);
+        cat.state_timer = RETURN_TIMEOUT;
+        cat.advance(lawn, 80, true, true, &mut rng);
+        assert_eq!(cat.state, CatActivity::Returning);
+        assert!(cat.x < 0.0);
+
+        for _ in 0..300 {
+            cat.advance(lawn, 80, true, true, &mut rng);
+            if cat.state == CatActivity::Sleeping {
+                break;
+            }
+        }
+        assert_eq!(cat.state, CatActivity::Sleeping);
+        assert!((cat.x - cat.sleep_x).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn cat_night_forces_return_without_teleporting() {
+        let lawn = test_lawn();
+        let mut cat = Cat::new(80);
+        let mut rng = StdRng::seed_from_u64(2);
+        cat.advance(lawn, 80, true, true, &mut rng);
+        cat.state = CatActivity::Hunting;
+        cat.x = 82.0;
+        cat.direction = 1;
+        let x_before = cat.x;
+        cat.advance(lawn, 80, false, true, &mut rng);
+        assert_eq!(cat.state, CatActivity::Returning);
+        assert!(cat.x < x_before);
+        assert!(cat.x > cat.sleep_x);
+    }
+
+    #[test]
+    fn overdue_return_keeps_moving_instead_of_teleporting() {
+        let lawn = test_lawn();
+        let mut cat = Cat::new(80);
+        let mut rng = StdRng::seed_from_u64(9);
+        cat.advance(lawn, 80, true, true, &mut rng);
+        cat.state = CatActivity::Returning;
+        cat.x = -100.0;
+        cat.state_timer = 1;
+        let x_before = cat.x;
+        cat.advance(lawn, 80, false, true, &mut rng);
+        assert_eq!(cat.state, CatActivity::Returning);
+        assert!(cat.x > x_before);
+        assert!(cat.x < cat.sleep_x);
     }
 
     #[test]

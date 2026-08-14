@@ -57,13 +57,10 @@ weathr
 weathr --auto-location
 weathr --simulate rain
 weathr --simulate snow --night
-weathr --test bunny
-weathr -t bunny --night
 ```
 
 Press `q` or `Ctrl+C` to exit. Use `weathr --help` for all options. Simulation mode previews
-weather scenes without requesting live forecast data. The offline bunny animation test also
-simulates clear weather, hides the configured location, and makes no location or weather requests.
+weather scenes without requesting live forecast data.
 
 ### Configuration
 

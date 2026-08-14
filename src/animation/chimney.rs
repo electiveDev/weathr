@@ -12,6 +12,14 @@ const PARTICLE_VERTICAL_SPEED: f32 = 0.1;
 const PARTICLE_DRIFT_SCALE: f32 = 0.08;
 const PARTICLE_SPAWN_JITTER_X: f32 = 1.6;
 const DEFAULT_SPAWN_RATE: u32 = 12;
+// WeatherData temperatures are normalized to Celsius before reaching the scene.
+const HEATING_THRESHOLD_CELSIUS: f64 = 15.0;
+
+fn heating_needed(ctx: &FrameContext<'_>) -> bool {
+    ctx.state.current_weather.as_ref().is_some_and(|weather| {
+        weather.temperature.is_finite() && weather.temperature < HEATING_THRESHOLD_CELSIUS
+    })
+}
 
 struct SmokeParticle {
     x: f32,
@@ -123,7 +131,10 @@ impl AnimationSystem for ChimneySmoke {
     }
 
     fn is_active(&self, ctx: &FrameContext<'_>) -> bool {
-        !ctx.conditions.is_raining && !ctx.conditions.is_thunderstorm && ctx.chimney.is_some()
+        !ctx.conditions.is_raining
+            && !ctx.conditions.is_thunderstorm
+            && ctx.chimney.is_some()
+            && heating_needed(ctx)
     }
 
     fn on_resize(&mut self, _size: TerminalSize) {}

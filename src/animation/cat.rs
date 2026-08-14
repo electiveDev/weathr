@@ -432,13 +432,13 @@ fn render_sprite(
             if source_char == ' ' {
                 continue;
             }
-            let character = if direction < 0 {
+            let character = if direction > 0 {
                 mirror_char(source_char)
             } else {
                 source_char
             };
             let column = column as i32;
-            let draw_x = if direction < 0 {
+            let draw_x = if direction > 0 {
                 anchor_x + line_width.saturating_sub(1).saturating_sub(column)
             } else {
                 anchor_x + column

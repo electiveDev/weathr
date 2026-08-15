@@ -38,6 +38,12 @@ impl Ground {
                         '*',
                         style.flower_colors[(x + y) % style.flower_colors.len()],
                     )
+                } else if r < style.meadow_flower_chance + style.meadow_grass_chance {
+                    if r % 3 == 0 {
+                        (',', style.grass_secondary)
+                    } else {
+                        ('^', style.grass_primary)
+                    }
                 } else {
                     let ch = if r < 20 {
                         '~'

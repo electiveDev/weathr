@@ -5,7 +5,7 @@ How to use different providers & how to implement them
 ## Using Providers
 
 There are currently 3 available providers:
-- IconGlobal (default): DWD's global ICON model through Open-Meteo
+- IconGlobal (default): DWD ICON-D2 through Open-Meteo
 - OpenMeteo: Open-Meteo's automatic model selection
 - MetOffice
 
@@ -13,8 +13,8 @@ Currently the only way to change the provider is done via the config.
 
 ### IconGlobal Provider
 
-The default provider requests `models=icon_global` from Open-Meteo's forecast API.
-This selects the DWD global ICON model worldwide, including locations in Germany.
+The default provider requests `models=dwd_icon_d2` from Open-Meteo's forecast API.
+This selects the high-resolution DWD ICON-D2 model for Central Europe.
 No API key is required.
 
 To make the default explicit in your config:

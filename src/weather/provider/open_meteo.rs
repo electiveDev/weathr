@@ -217,9 +217,8 @@ mod tests {
         let automatic_url = OpenMeteoProvider::new().build_url(&location, &units);
         assert!(!automatic_url.contains("models="));
 
-        let icon_url =
-            OpenMeteoProvider::for_model("icon_global", "DWD ICON Global via Open-Meteo")
-                .build_url(&location, &units);
-        assert!(icon_url.ends_with("&models=icon_global"));
+        let icon_url = OpenMeteoProvider::for_model("dwd_icon_d2", "DWD ICON D2 via Open-Meteo")
+            .build_url(&location, &units);
+        assert!(icon_url.ends_with("&models=dwd_icon_d2"));
     }
 }

@@ -102,7 +102,7 @@ async fn test_weather_client_integration_realistic_weather_ranges() {
 }
 
 #[tokio::test]
-async fn test_icon_global_weather_is_plausible_in_germany() {
+async fn test_icon_d2_weather_is_plausible_in_germany() {
     let provider = IconGlobalProvider::new();
     let location = WeatherLocation {
         latitude: 52.52,
@@ -113,7 +113,7 @@ async fn test_icon_global_weather_is_plausible_in_germany() {
     let weather = provider
         .get_current_weather(&location, &WeatherUnits::default())
         .await
-        .expect("ICON Global should return weather for Berlin");
+        .expect("ICON D2 should return weather for Berlin");
 
     assert!(
         (-90.0..=60.0).contains(&weather.temperature),
@@ -136,5 +136,5 @@ async fn test_icon_global_weather_is_plausible_in_germany() {
         weather.wind_direction
     );
     assert!(!weather.timestamp.is_empty());
-    assert_eq!(weather.attribution, "DWD ICON Global via Open-Meteo");
+    assert_eq!(weather.attribution, "DWD ICON D2 via Open-Meteo");
 }

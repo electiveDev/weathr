@@ -13,98 +13,8 @@ pub struct SceneContext<'a> {
     pub palette: &'a Palette,
     pub season: Season,
 }
-
-/// The inclusive rectangle covering the meadow and brown ground rendered by
-/// the world scene.
-///
-/// `left`/`top` and `right`/`bottom` are terminal cell coordinates. Keeping
-/// this geometry in the scene module keeps related world-layout calculations
-/// aligned with the renderer without duplicating frame-local bounds.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct LawnBounds {
-    pub left: u16,
-    pub top: u16,
-    pub right: u16,
-    pub bottom: u16,
-}
-
-impl LawnBounds {
-    pub const fn width(self) -> u16 {
-        self.right.saturating_sub(self.left).saturating_add(1)
-    }
-
-    pub const fn height(self) -> u16 {
-        self.bottom.saturating_sub(self.top).saturating_add(1)
-    }
-}
 pub const HOUSE_WIDTH: u16 = 64;
 pub const HOUSE_HEIGHT: u16 = 10;
-
-pub const POND_WIDTH: u16 = 13;
-pub const POND_HEIGHT: u16 = 3;
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct PondBounds {
-    pub x: u16,
-    pub y: u16,
-    pub width: u16,
-    pub height: u16,
-}
-
-#[allow(dead_code)]
-impl PondBounds {
-    pub const fn right(self) -> u16 {
-        self.x.saturating_add(self.width.saturating_sub(1))
-    }
-
-    pub const fn bottom(self) -> u16 {
-        self.y.saturating_add(self.height.saturating_sub(1))
-    }
-
-    pub const fn center_x(self) -> u16 {
-        self.x.saturating_add(self.width / 2)
-    }
-}
-
-/// Return the lower green meadow and brown ground rendered from `ground_y`,
-/// while reserving the attribution/status rows at the terminal bottom.
-pub fn lawn_bounds(width: u16, height: u16, ground_y: u16) -> Option<LawnBounds> {
-    if width == 0 || height < 3 {
-        return None;
-    }
-
-    let top = ground_y;
-    let bottom = height.saturating_sub(2);
-    if top > bottom {
-        return None;
-    }
-
-    Some(LawnBounds {
-        left: 0,
-        top,
-        right: width.saturating_sub(1),
-        bottom,
-    })
-}
-
-/// Place a small, stable pond at the lower-right of the meadow. It is
-/// derived from the same bounds used by the world renderer, so resize cannot
-/// make it drift outside the scene.
-pub fn pond_bounds(width: u16, height: u16, ground_y: u16) -> Option<PondBounds> {
-    let lawn = lawn_bounds(width, height, ground_y)?;
-    if lawn.width() < POND_WIDTH.saturating_add(4) || lawn.height() < POND_HEIGHT {
-        return None;
-    }
-
-    let x = lawn.right.saturating_sub(POND_WIDTH.saturating_add(2));
-    let y = lawn.bottom.saturating_sub(POND_HEIGHT.saturating_sub(1));
-    Some(PondBounds {
-        x,
-        y,
-        width: POND_WIDTH,
-        height: POND_HEIGHT,
-    })
-}
 
 #[derive(Clone, Copy)]
 pub struct SceneLayout {
@@ -156,38 +66,5 @@ impl SceneRegistry {
 impl Default for SceneRegistry {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn lawn_covers_green_and_brown_ground_without_status_row() {
-        let lawn = lawn_bounds(80, 24, 17).expect("normal terminal has a lawn");
-        assert_eq!(lawn.top, 17);
-        assert_eq!(lawn.bottom, 22);
-        assert_eq!(lawn.height(), 6);
-        assert_eq!(lawn.right, 79);
-    }
-
-    #[test]
-    fn pond_is_stable_and_inside_lawn() {
-        let lawn = lawn_bounds(80, 24, 17).unwrap();
-        let pond = pond_bounds(80, 24, 17).unwrap();
-        assert!(pond.x >= lawn.left);
-        assert!(pond.right() <= lawn.right);
-        assert!(pond.y >= lawn.top);
-        assert!(pond.bottom() <= lawn.bottom);
-        assert_eq!(pond.width, POND_WIDTH);
-        assert_eq!(pond.height, POND_HEIGHT);
-    }
-
-    #[test]
-    fn tiny_terminals_hide_geometry_instead_of_underflowing() {
-        assert!(lawn_bounds(0, 24, 17).is_none());
-        assert!(lawn_bounds(70, 2, 1).is_none());
-        assert!(pond_bounds(15, 24, 17).is_none());
     }
 }

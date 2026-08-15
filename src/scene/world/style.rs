@@ -28,8 +28,6 @@ pub struct WorldSceneStyle {
     pub fruit_colors: [Color; 3],
     pub fence: Color,
     pub mailbox: Color,
-    pub water: Color,
-    pub water_edge: Color,
 }
 
 impl WorldSceneStyle {
@@ -70,8 +68,6 @@ impl WorldSceneStyle {
                 ],
                 fence: Color::White,
                 mailbox: Color::Blue,
-                water: Color::Blue,
-                water_edge: Color::Cyan,
             }
         } else {
             Self {
@@ -117,8 +113,6 @@ impl WorldSceneStyle {
                 ],
                 fence: Color::Grey,
                 mailbox: Color::DarkBlue,
-                water: Color::DarkBlue,
-                water_edge: Color::Blue,
             }
         };
 
@@ -145,16 +139,6 @@ impl WorldSceneStyle {
                         g: 150,
                         b: 55,
                     };
-                    self.water = Color::Rgb {
-                        r: 40,
-                        g: 135,
-                        b: 190,
-                    };
-                    self.water_edge = Color::Rgb {
-                        r: 80,
-                        g: 190,
-                        b: 180,
-                    };
                     self.flower_colors = [Color::Magenta, Color::Red, Color::Yellow, Color::White];
                     self.tree_foliage = Color::Green;
                 } else {
@@ -169,8 +153,6 @@ impl WorldSceneStyle {
                         g: 65,
                         b: 30,
                     };
-                    self.water = Color::DarkBlue;
-                    self.water_edge = Color::Blue;
                     self.flower_colors = [
                         Color::DarkMagenta,
                         Color::DarkRed,
@@ -193,12 +175,6 @@ impl WorldSceneStyle {
                         g: 160,
                         b: 60,
                     };
-                    self.water = Color::Rgb {
-                        r: 30,
-                        g: 135,
-                        b: 205,
-                    };
-                    self.water_edge = Color::Cyan;
                     self.tree_foliage = Color::Green;
                     self.fruit_colors = [
                         Color::Red,
@@ -217,8 +193,6 @@ impl WorldSceneStyle {
                         g: 75,
                         b: 35,
                     };
-                    self.water = Color::DarkBlue;
-                    self.water_edge = Color::Blue;
                     self.tree_foliage = Color::Rgb { r: 0, g: 50, b: 0 };
                     self.fruit_colors = [
                         Color::DarkRed,
@@ -247,16 +221,6 @@ impl WorldSceneStyle {
                         r: 112,
                         g: 70,
                         b: 34,
-                    };
-                    self.water = Color::Rgb {
-                        r: 35,
-                        g: 115,
-                        b: 165,
-                    };
-                    self.water_edge = Color::Rgb {
-                        r: 70,
-                        g: 160,
-                        b: 160,
                     };
                     self.flower_colors = [
                         Color::DarkRed,
@@ -289,8 +253,6 @@ impl WorldSceneStyle {
                         g: 40,
                         b: 22,
                     };
-                    self.water = Color::DarkBlue;
-                    self.water_edge = Color::Blue;
                     self.flower_colors = [
                         Color::DarkRed,
                         Color::DarkYellow,
@@ -329,16 +291,6 @@ impl WorldSceneStyle {
                         g: 215,
                         b: 205,
                     };
-                    self.water = Color::Rgb {
-                        r: 90,
-                        g: 130,
-                        b: 155,
-                    };
-                    self.water_edge = Color::Rgb {
-                        r: 165,
-                        g: 190,
-                        b: 195,
-                    };
                     self.tree_foliage = Color::Rgb {
                         r: 100,
                         g: 70,
@@ -359,16 +311,6 @@ impl WorldSceneStyle {
                         r: 95,
                         g: 105,
                         b: 100,
-                    };
-                    self.water = Color::Rgb {
-                        r: 55,
-                        g: 80,
-                        b: 100,
-                    };
-                    self.water_edge = Color::Rgb {
-                        r: 100,
-                        g: 125,
-                        b: 135,
                     };
                     self.tree_foliage = Color::Rgb {
                         r: 55,
@@ -497,14 +439,6 @@ mod tests {
                 b: 205
             }
         );
-        assert_eq!(
-            winter.water_edge,
-            Color::Rgb {
-                r: 165,
-                g: 190,
-                b: 195,
-            }
-        );
     }
 
     #[test]
@@ -518,7 +452,6 @@ mod tests {
         assert_ne!(day_styles[0].soil, day_styles[1].soil);
         assert_ne!(day_styles[1].soil, day_styles[2].soil);
         assert_ne!(day_styles[2].soil, day_styles[3].soil);
-        assert_ne!(day_styles[0].water_edge, day_styles[3].water_edge);
 
         let spring_night = style_for_time(Season::Spring, false);
         assert_eq!(spring_night.grass_primary, Color::DarkGreen);
@@ -533,14 +466,6 @@ mod tests {
         );
 
         let winter_night = style_for_time(Season::Winter, false);
-        assert_eq!(
-            winter_night.water,
-            Color::Rgb {
-                r: 55,
-                g: 80,
-                b: 100,
-            }
-        );
         assert_ne!(spring_night.soil, winter_night.soil);
         assert_eq!(
             winter_night.soil,

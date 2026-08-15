@@ -20,6 +20,7 @@ pub struct WorldSceneStyle {
     pub grass_secondary: Color,
     pub flower_colors: [Color; 4],
     pub flower_chance: u32,
+    pub meadow_flower_chance: u32,
     pub soil: Color,
     pub tree_foliage: Color,
     pub tree_appearance: TreeAppearance,
@@ -48,6 +49,7 @@ impl WorldSceneStyle {
                 grass_secondary: Color::DarkGreen,
                 flower_colors: [Color::Magenta, Color::Red, Color::Cyan, Color::Yellow],
                 flower_chance: 5,
+                meadow_flower_chance: 0,
                 soil: Color::Rgb {
                     r: 101,
                     g: 67,
@@ -93,6 +95,7 @@ impl WorldSceneStyle {
                     Color::DarkYellow,
                 ],
                 flower_chance: 5,
+                meadow_flower_chance: 0,
                 soil: Color::Rgb {
                     r: 60,
                     g: 40,
@@ -135,9 +138,9 @@ impl WorldSceneStyle {
                         b: 55,
                     };
                     self.soil = Color::Rgb {
-                        r: 82,
-                        g: 68,
-                        b: 45,
+                        r: 75,
+                        g: 150,
+                        b: 55,
                     };
                     self.water = Color::Rgb {
                         r: 40,
@@ -159,9 +162,9 @@ impl WorldSceneStyle {
                         b: 25,
                     };
                     self.soil = Color::Rgb {
-                        r: 42,
-                        g: 36,
-                        b: 28,
+                        r: 25,
+                        g: 65,
+                        b: 30,
                     };
                     self.water = Color::DarkBlue;
                     self.water_edge = Color::Blue;
@@ -174,6 +177,7 @@ impl WorldSceneStyle {
                     self.tree_foliage = Color::Rgb { r: 0, g: 50, b: 0 };
                 }
                 self.flower_chance = 18;
+                self.meadow_flower_chance = 3;
                 self.tree_appearance = TreeAppearance::Blossoming;
             }
             Season::Summer => {
@@ -181,9 +185,9 @@ impl WorldSceneStyle {
                     self.grass_primary = Color::Green;
                     self.grass_secondary = Color::DarkGreen;
                     self.soil = Color::Rgb {
-                        r: 128,
-                        g: 94,
-                        b: 48,
+                        r: 95,
+                        g: 160,
+                        b: 60,
                     };
                     self.water = Color::Rgb {
                         r: 30,
@@ -205,9 +209,9 @@ impl WorldSceneStyle {
                     self.grass_primary = Color::DarkGreen;
                     self.grass_secondary = Color::Rgb { r: 0, g: 40, b: 0 };
                     self.soil = Color::Rgb {
-                        r: 60,
-                        g: 45,
-                        b: 25,
+                        r: 35,
+                        g: 75,
+                        b: 35,
                     };
                     self.water = Color::DarkBlue;
                     self.water_edge = Color::Blue;
@@ -223,6 +227,7 @@ impl WorldSceneStyle {
                     ];
                 }
                 self.flower_chance = 3;
+                self.meadow_flower_chance = 18;
                 self.tree_appearance = TreeAppearance::Full;
             }
             Season::Autumn => {
@@ -298,6 +303,7 @@ impl WorldSceneStyle {
                     };
                 }
                 self.flower_chance = 2;
+                self.meadow_flower_chance = 0;
                 self.tree_appearance = TreeAppearance::Autumn;
             }
             Season::Winter => {
@@ -313,9 +319,9 @@ impl WorldSceneStyle {
                         b: 95,
                     };
                     self.soil = Color::Rgb {
-                        r: 135,
-                        g: 130,
-                        b: 115,
+                        r: 210,
+                        g: 215,
+                        b: 205,
                     };
                     self.water = Color::Rgb {
                         r: 90,
@@ -344,9 +350,9 @@ impl WorldSceneStyle {
                         b: 40,
                     };
                     self.soil = Color::Rgb {
-                        r: 65,
-                        g: 65,
-                        b: 60,
+                        r: 95,
+                        g: 105,
+                        b: 100,
                     };
                     self.water = Color::Rgb {
                         r: 55,
@@ -365,6 +371,7 @@ impl WorldSceneStyle {
                     };
                 }
                 self.flower_chance = 0;
+                self.meadow_flower_chance = 0;
                 self.tree_appearance = TreeAppearance::Bare;
             }
         }
@@ -403,24 +410,26 @@ mod tests {
         let spring = style_for(Season::Spring);
         assert_eq!(spring.tree_appearance, TreeAppearance::Blossoming);
         assert_eq!(spring.flower_chance, 18);
+        assert_eq!(spring.meadow_flower_chance, 3);
         assert_eq!(
             spring.soil,
             Color::Rgb {
-                r: 82,
-                g: 68,
-                b: 45
+                r: 75,
+                g: 150,
+                b: 55
             }
         );
 
         let summer = style_for(Season::Summer);
         assert_eq!(summer.tree_appearance, TreeAppearance::Full);
         assert_eq!(summer.flower_chance, 3);
+        assert_eq!(summer.meadow_flower_chance, 18);
         assert_eq!(
             summer.soil,
             Color::Rgb {
-                r: 128,
-                g: 94,
-                b: 48
+                r: 95,
+                g: 160,
+                b: 60
             }
         );
         assert_eq!(summer.fruit_colors[0], Color::Red);
@@ -428,6 +437,7 @@ mod tests {
         let autumn = style_for(Season::Autumn);
         assert_eq!(autumn.tree_appearance, TreeAppearance::Autumn);
         assert_eq!(autumn.flower_chance, 2);
+        assert_eq!(autumn.meadow_flower_chance, 0);
         assert!(autumn.flower_chance < summer.flower_chance);
         assert_eq!(
             autumn.soil,
@@ -458,20 +468,21 @@ mod tests {
         let winter = style_for(Season::Winter);
         assert_eq!(winter.tree_appearance, TreeAppearance::Bare);
         assert_eq!(winter.flower_chance, 0);
+        assert_eq!(winter.meadow_flower_chance, 0);
         assert_eq!(
             winter.grass_primary,
             Color::Rgb {
                 r: 145,
                 g: 155,
-                b: 125,
+                b: 125
             }
         );
         assert_eq!(
             winter.soil,
             Color::Rgb {
-                r: 135,
-                g: 130,
-                b: 115,
+                r: 210,
+                g: 215,
+                b: 205
             }
         );
         assert_eq!(
@@ -503,9 +514,9 @@ mod tests {
         assert_eq!(
             spring_night.soil,
             Color::Rgb {
-                r: 42,
-                g: 36,
-                b: 28
+                r: 25,
+                g: 65,
+                b: 30
             }
         );
 
@@ -519,5 +530,13 @@ mod tests {
             }
         );
         assert_ne!(spring_night.soil, winter_night.soil);
+        assert_eq!(
+            winter_night.soil,
+            Color::Rgb {
+                r: 95,
+                g: 105,
+                b: 100
+            }
+        );
     }
 }

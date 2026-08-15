@@ -21,10 +21,10 @@ The month mapping is local-time based. December, January, and February all map t
 
 The world scene always contains the centered house and its ground, pond, fence, and mailbox when they fit the terminal layout. A second pine tree is added on sufficiently wide terminals. The day/night palette is selected first; the season then adjusts the vegetation, tree silhouette, ground, and pond styling.
 
-- **Spring:** bright green grass, moist dark soil, greener pond edges, frequent flowers, and a medium-sized blossoming tree.
-- **Summer:** saturated green grass, warm soil, bright water, the largest full tree, and deterministic red/yellow fruit accents.
-- **Autumn:** muted yellow/brown grass, rust-colored soil and pond edges, a thinner tree silhouette, and autumn-colored remaining leaves.
-- **Winter:** cool grey-green grass, frosted grey-brown soil, cool pond colors, no flowers, and a completely bare tree.
+- **Spring:** bright green grass, a green meadow floor with sparse flowers, greener pond edges, frequent flowers, and a medium-sized blossoming tree.
+- **Summer:** saturated green grass, a green flower meadow across the lower ground, bright water, the largest full tree, and deterministic red/yellow fruit accents.
+- **Autumn:** muted yellow/brown grass, brown soil and pond edges, a thinner tree silhouette, and autumn-colored remaining leaves.
+- **Winter:** cool grey-green grass, white frosted ground, cool pond colors, no flowers, and a completely bare tree.
 
 The seasonal world styling is separate from precipitation animations. For example, `--leaves` explicitly enables the falling-leaves foreground system; it is not silently enabled or disabled by the calendar season. Falling leaves are suppressed while rain, thunderstorms, or snow are active.
 

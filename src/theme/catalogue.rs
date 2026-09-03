@@ -22,15 +22,11 @@ pub const DEFAULT_PALETTE: Palette = Palette {
         g: 55,
         b: 38,
     },
-    accent_primary: Color::Rgb {
-        r: 178,
-        g: 54,
-        b: 47,
-    },
+    accent_primary: Color::DarkRed,
     accent_secondary: Color::Rgb {
-        r: 191,
-        g: 154,
-        b: 103,
+        r: 210,
+        g: 180,
+        b: 140,
     },
     atmosphere: Some(Color::Rgb {
         r: 118,

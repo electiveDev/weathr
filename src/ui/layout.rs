@@ -88,36 +88,12 @@ impl RenderRegions {
             };
         }
 
-        let (scene, hud) = match tier {
-            LayoutTier::Large => {
-                let panel_width = 28.min(width.saturating_sub(72));
-                let gap = u16::from(panel_width > 0);
-                let scene_width = width.saturating_sub(panel_width.saturating_add(gap));
-                let hud_x = scene_width.saturating_add(gap);
-                let hud_height = body.height.saturating_sub(2);
-                (
-                    Rect::new(0, 0, scene_width, body.height),
-                    Rect::new(hud_x, 1.min(body.height), panel_width, hud_height),
-                )
-            }
-            LayoutTier::Medium => {
-                let hud_height = if details_visible { 6 } else { 4 }.min(body.height);
-                let scene_y = hud_height.saturating_add(1).min(body.height);
-                (
-                    Rect::new(0, scene_y, width, body.height.saturating_sub(scene_y)),
-                    Rect::new(1.min(width), 0, width.saturating_sub(2), hud_height),
-                )
-            }
-            LayoutTier::Small => {
-                let hud_height = if details_visible { 6 } else { 4 }.min(body.height);
-                let hud_y = body.height.saturating_sub(hud_height);
-                let scene_height = hud_y.saturating_sub(1);
-                (
-                    Rect::new(0, 0, width, scene_height),
-                    Rect::new(1.min(width), hud_y, width.saturating_sub(2), hud_height),
-                )
-            }
-        };
+        // Keep the HUD close to the original terminal presentation: one fitted
+        // summary line at the top, with an optional second line for F1 details.
+        // The scene always starts below it, regardless of the responsive tier.
+        let hud_height = if details_visible { 2 } else { 1 }.min(body.height);
+        let scene = Rect::new(0, hud_height, width, body.height.saturating_sub(hud_height));
+        let hud = Rect::new(0, 0, width, hud_height);
 
         Self {
             screen,
@@ -139,19 +115,19 @@ mod tests {
             RenderRegions::calculate(70, 20, true, false).tier,
             LayoutTier::Small
         );
-        assert_eq!(
-            RenderRegions::calculate(70, 20, true, false)
-                .hud
-                .unwrap()
-                .height,
-            4
-        );
+        let small = RenderRegions::calculate(70, 20, true, false);
+        assert_eq!(small.hud, Some(Rect::new(0, 0, 70, 1)));
+        assert_eq!(small.scene, Rect::new(0, 1, 70, 18));
         assert_eq!(
             RenderRegions::calculate(70, 20, true, true)
                 .hud
                 .unwrap()
                 .height,
-            6
+            2
+        );
+        assert_eq!(
+            RenderRegions::calculate(70, 20, true, true).scene,
+            Rect::new(0, 2, 70, 17)
         );
         assert_eq!(
             RenderRegions::calculate(89, 22, true, false).tier,
@@ -169,6 +145,19 @@ mod tests {
             RenderRegions::calculate(120, 28, true, false).tier,
             LayoutTier::Large
         );
+    }
+
+    #[test]
+    fn hud_is_a_top_line_for_every_responsive_tier() {
+        for (width, height) in [(70, 20), (90, 23), (120, 28), (180, 50)] {
+            let summary = RenderRegions::calculate(width, height, true, false);
+            let details = RenderRegions::calculate(width, height, true, true);
+
+            assert_eq!(summary.hud, Some(Rect::new(0, 0, width, 1)));
+            assert_eq!(summary.scene.y, 1);
+            assert_eq!(details.hud, Some(Rect::new(0, 0, width, 2)));
+            assert_eq!(details.scene.y, 2);
+        }
     }
 
     #[test]

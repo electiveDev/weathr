@@ -1,22 +1,10 @@
 use crate::app_state::AppState;
 use crate::render::TerminalRenderer;
 use crate::theme::VisualPalette;
-use crate::ui::layout::{LayoutTier, Rect, RenderRegions};
+use crate::ui::layout::{Rect, RenderRegions};
 use crate::weather::{format_precipitation, format_temperature, format_wind_speed};
 use std::io;
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
-
-const HORIZONTAL_ASCII: char = '-';
-
-#[derive(Clone, Copy)]
-struct FrameGlyphs {
-    top_left: char,
-    top_right: char,
-    bottom_left: char,
-    bottom_right: char,
-    vertical: char,
-    horizontal: char,
-}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HudModel {
@@ -86,6 +74,8 @@ impl HudModel {
     }
 }
 
+/// Render the weather summary as the original-style, unframed line above the scene.
+/// F1 only adds a second fitted line; it never turns the HUD into a panel.
 pub fn render(
     renderer: &mut TerminalRenderer,
     state: &AppState,
@@ -100,213 +90,75 @@ pub fn render(
 
     let model = HudModel::from_state(state, attribution, show_details);
     renderer.set_viewport(Some(rect));
-    renderer.fill_viewport(palette.surface)?;
-    let unicode = renderer.supports_unicode();
-    let glyphs = if unicode {
-        FrameGlyphs {
-            top_left: '┌',
-            top_right: '┐',
-            bottom_left: '└',
-            bottom_right: '┘',
-            vertical: '│',
-            horizontal: '─',
-        }
-    } else {
-        FrameGlyphs {
-            top_left: '+',
-            top_right: '+',
-            bottom_left: '+',
-            bottom_right: '+',
-            vertical: '|',
-            horizontal: HORIZONTAL_ASCII,
-        }
-    };
+    let result = (|| {
+        renderer.fill_viewport(palette.sky)?;
+        render_summary_line(renderer, rect, &model, palette)?;
 
-    draw_frame(renderer, rect, palette.border, glyphs)?;
-    let inner = Rect::new(
-        1,
-        1,
-        rect.width.saturating_sub(2),
-        rect.height.saturating_sub(2),
-    );
-    let result = match regions.tier {
-        LayoutTier::Large => render_large(renderer, inner, &model, palette),
-        LayoutTier::Medium => render_compact(renderer, inner, &model, palette),
-        LayoutTier::Small => render_small(renderer, inner, &model, palette),
-    };
+        if rect.height > 1 {
+            let details = if model.details.is_empty() {
+                "F1 details  q quit".to_string()
+            } else {
+                format!("{}  q quit", model.details.join(" | "))
+            };
+            write_line(renderer, rect, 1, &details, palette.text_muted)?;
+        }
+        Ok(())
+    })();
     renderer.clear_viewport();
     result
 }
 
-fn render_large(
+fn render_summary_line(
     renderer: &mut TerminalRenderer,
     rect: Rect,
     model: &HudModel,
     palette: VisualPalette,
 ) -> io::Result<()> {
-    let mut row = 0;
-    write_fit(renderer, rect, 0, row, "WEATHER / NOW", palette.text_muted)?;
-    row += 2;
-    write_fit(
-        renderer,
-        rect,
-        0,
-        row,
-        &model.temperature,
-        palette.temperature,
-    )?;
-    row += 2;
-    write_fit(
-        renderer,
-        rect,
-        0,
-        row,
-        &model.condition.to_uppercase(),
-        palette.condition,
-    )?;
-    row += 2;
+    let mut segments = vec![
+        (model.temperature.clone(), palette.temperature),
+        ("  ".to_string(), palette.text_muted),
+        (model.condition.clone(), palette.condition),
+    ];
+
     if let Some(location) = &model.location {
-        write_fit(renderer, rect, 0, row, location, palette.text_primary)?;
-        row += 2;
+        segments.push(("  ".to_string(), palette.text_muted));
+        segments.push((location.clone(), palette.text_primary));
     }
-    write_fit(
-        renderer,
-        rect,
-        0,
-        row,
-        &format!("WIND  {}", model.wind),
-        palette.wind,
-    )?;
-    row += 1;
-    write_fit(
-        renderer,
-        rect,
-        0,
-        row,
-        &format!("RAIN  {}", model.precipitation),
-        palette.precipitation,
-    )?;
-    row += 2;
-    for detail in &model.details {
-        if row >= rect.height {
-            break;
-        }
-        write_fit(renderer, rect, 0, row, detail, palette.text_muted)?;
-        row += 1;
+    segments.push(("  WIND ".to_string(), palette.text_muted));
+    segments.push((model.wind.clone(), palette.wind));
+    segments.push(("  RAIN ".to_string(), palette.text_muted));
+    segments.push((model.precipitation.clone(), palette.precipitation));
+
+    let full_text = segments
+        .iter()
+        .map(|(text, _)| text.as_str())
+        .collect::<String>();
+    let fitted = fit_text(&full_text, rect.width as usize);
+
+    if fitted != full_text {
+        return renderer.render_line_colored(0, 0, &fitted, palette.text_primary);
+    }
+
+    let mut x = 0u16;
+    for (text, color) in segments {
+        renderer.render_line_colored(x, 0, &text, color)?;
+        x = x.saturating_add(text.width() as u16);
     }
     Ok(())
 }
 
-fn render_compact(
+fn write_line(
     renderer: &mut TerminalRenderer,
     rect: Rect,
-    model: &HudModel,
-    palette: VisualPalette,
-) -> io::Result<()> {
-    let first = if let Some(location) = &model.location {
-        format!("{}  {}  {}", model.temperature, model.condition, location)
-    } else {
-        format!("{}  {}", model.temperature, model.condition)
-    };
-    write_fit(renderer, rect, 0, 0, &first, palette.temperature)?;
-    if rect.height > 1 {
-        write_fit(
-            renderer,
-            rect,
-            0,
-            1,
-            &format!("WIND {}   RAIN {}", model.wind, model.precipitation),
-            palette.wind,
-        )?;
-    }
-    for (index, detail) in model.details.iter().enumerate() {
-        let row = index as u16 + 2;
-        if row >= rect.height {
-            break;
-        }
-        write_fit(renderer, rect, 0, row, detail, palette.text_muted)?;
-    }
-    Ok(())
-}
-
-fn render_small(
-    renderer: &mut TerminalRenderer,
-    rect: Rect,
-    model: &HudModel,
-    palette: VisualPalette,
-) -> io::Result<()> {
-    write_fit(
-        renderer,
-        rect,
-        0,
-        0,
-        &format!("{}  {}", model.temperature, model.condition),
-        palette.temperature,
-    )?;
-    if rect.height > 1 {
-        let location = model.location.as_deref().unwrap_or("location hidden");
-        write_fit(
-            renderer,
-            rect,
-            0,
-            1,
-            &format!("{}  W {}  R {}", location, model.wind, model.precipitation),
-            palette.text_primary,
-        )?;
-    }
-    for (index, detail) in model.details.iter().enumerate() {
-        let row = index as u16 + 2;
-        if row >= rect.height {
-            break;
-        }
-        write_fit(renderer, rect, 0, row, detail, palette.text_muted)?;
-    }
-    Ok(())
-}
-
-fn draw_frame(
-    renderer: &mut TerminalRenderer,
-    rect: Rect,
-    color: crossterm::style::Color,
-    glyphs: FrameGlyphs,
-) -> io::Result<()> {
-    if rect.width < 2 || rect.height < 2 {
-        return Ok(());
-    }
-    renderer.render_char(0, 0, glyphs.top_left, color)?;
-    renderer.render_char(rect.width - 1, 0, glyphs.top_right, color)?;
-    renderer.render_char(0, rect.height - 1, glyphs.bottom_left, color)?;
-    renderer.render_char(rect.width - 1, rect.height - 1, glyphs.bottom_right, color)?;
-    for x in 1..rect.width.saturating_sub(1) {
-        renderer.render_char(x, 0, glyphs.horizontal, color)?;
-        renderer.render_char(x, rect.height - 1, glyphs.horizontal, color)?;
-    }
-    for y in 1..rect.height.saturating_sub(1) {
-        renderer.render_char(0, y, glyphs.vertical, color)?;
-        renderer.render_char(rect.width - 1, y, glyphs.vertical, color)?;
-    }
-    Ok(())
-}
-
-fn write_fit(
-    renderer: &mut TerminalRenderer,
-    rect: Rect,
-    x: u16,
-    y: u16,
+    row: u16,
     text: &str,
     color: crossterm::style::Color,
 ) -> io::Result<()> {
-    if y >= rect.height || x >= rect.width {
+    if row >= rect.height {
         return Ok(());
     }
-    let available = rect.width.saturating_sub(x) as usize;
-    let fitted = fit_text(text, available);
-    renderer.render_line_colored(
-        rect.x.saturating_add(x),
-        rect.y.saturating_add(y),
-        &fitted,
-        color,
-    )
+    let fitted = fit_text(text, rect.width as usize);
+    renderer.render_line_colored(0, row, &fitted, color)
 }
 
 pub fn fit_text(text: &str, max_width: usize) -> String {

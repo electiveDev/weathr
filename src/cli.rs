@@ -65,7 +65,7 @@ pub struct Cli {
     #[arg(long, help = "Hide location coordinates in UI")]
     pub hide_location: bool,
 
-    #[arg(long, help = "Hide weather HUD card (keep status/attribution)")]
+    #[arg(long, help = "Hide weather HUD summary (keep status/attribution)")]
     pub hide_hud: bool,
 
     #[arg(

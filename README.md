@@ -6,9 +6,9 @@ This fork defaults to the DWD global ICON weather model.
 A terminal weather app with real-time data, ASCII animations, automatic location detection,
 and day/night scenes.
 
-The current fork presents the scene as the primary view and places a compact weather card beside,
-above, or below it depending on terminal size. The card prioritizes temperature, condition,
-location, wind, and precipitation. F1 expands the card with available coordinates, timestamp,
+The current fork presents the scene as the primary view and places a compact, unframed weather
+summary line above it at every supported terminal size. The line prioritizes temperature, condition,
+location, wind, and precipitation. F1 adds a second line with available coordinates, timestamp,
 source, and controls; the scene and its animations remain visible in every layout.
 
 ## Demo

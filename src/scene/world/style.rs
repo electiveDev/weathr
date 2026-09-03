@@ -2,13 +2,6 @@ use crate::scene::SceneContext;
 use crate::season::Season;
 use crossterm::style::Color;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum TreeAppearance {
-    Full,
-    Blossoming,
-    Autumn,
-    Bare,
-}
 #[derive(Clone, Copy)]
 pub struct WorldSceneStyle {
     pub roof: Color,
@@ -24,9 +17,6 @@ pub struct WorldSceneStyle {
     pub meadow_grass_chance: u32,
     pub soil: Color,
     pub tree_foliage: Color,
-    pub tree_trunk: Color,
-    pub tree_appearance: TreeAppearance,
-    pub fruit_colors: [Color; 3],
     pub fence: Color,
 }
 
@@ -34,70 +24,64 @@ impl WorldSceneStyle {
     pub fn resolve(ctx: &SceneContext<'_>) -> Self {
         let palette = ctx.palette;
         let mut style = if ctx.conditions.sun.is_day {
+            // Keep the house palette from the original scene. Seasons only affect the world around it.
             Self {
                 roof: palette.accent_primary,
                 wood: palette.accent_secondary,
-                door: palette.soil,
-                window: palette.temperature,
-                trim: palette.text_primary,
-                grass_primary: ctx.visual.vegetation,
-                grass_secondary: palette.vegetation,
-                flower_colors: [
-                    palette.blossom,
-                    palette.fruit,
-                    palette.temperature,
-                    palette.text_primary,
-                ],
+                door: Color::Rgb {
+                    r: 139,
+                    g: 69,
+                    b: 19,
+                },
+                window: Color::Cyan,
+                trim: Color::DarkGrey,
+                grass_primary: palette.ground_day,
+                grass_secondary: Color::DarkGreen,
+                flower_colors: [Color::Magenta, Color::Red, Color::Cyan, Color::Yellow],
                 flower_chance: 5,
                 meadow_flower_chance: 0,
                 meadow_grass_chance: 0,
-                soil: ctx.visual.soil,
-                tree_foliage: ctx.visual.tree,
-                tree_trunk: Color::Rgb {
-                    r: 112,
-                    g: 71,
-                    b: 43,
+                soil: Color::Rgb {
+                    r: 101,
+                    g: 67,
+                    b: 33,
                 },
-                tree_appearance: TreeAppearance::Full,
-                fruit_colors: [palette.fruit, palette.temperature, palette.condition],
-                fence: palette.text_primary,
+                tree_foliage: Color::DarkGreen,
+                fence: Color::White,
             }
         } else {
             Self {
-                roof: palette.accent_primary,
+                roof: Color::DarkMagenta,
                 wood: Color::Rgb {
-                    r: 117,
-                    g: 88,
-                    b: 70,
+                    r: 100,
+                    g: 70,
+                    b: 50,
                 },
                 door: Color::Rgb {
-                    r: 65,
-                    g: 45,
-                    b: 38,
+                    r: 80,
+                    g: 40,
+                    b: 10,
                 },
-                window: palette.temperature,
-                trim: palette.text_primary,
-                grass_primary: ctx.visual.vegetation,
-                grass_secondary: palette.vegetation,
+                window: Color::Yellow,
+                trim: Color::DarkGrey,
+                grass_primary: palette.ground_night,
+                grass_secondary: Color::Rgb { r: 0, g: 50, b: 0 },
                 flower_colors: [
-                    palette.blossom,
-                    palette.fruit,
-                    palette.wind,
-                    palette.temperature,
+                    Color::DarkMagenta,
+                    Color::DarkRed,
+                    Color::Blue,
+                    Color::DarkYellow,
                 ],
                 flower_chance: 5,
                 meadow_flower_chance: 0,
                 meadow_grass_chance: 0,
-                soil: ctx.visual.soil,
-                tree_foliage: ctx.visual.tree,
-                tree_trunk: Color::Rgb {
-                    r: 70,
-                    g: 46,
-                    b: 34,
+                soil: Color::Rgb {
+                    r: 60,
+                    g: 40,
+                    b: 20,
                 },
-                tree_appearance: TreeAppearance::Full,
-                fruit_colors: [Color::DarkRed, Color::DarkYellow, palette.condition],
-                fence: palette.text_muted,
+                tree_foliage: Color::Rgb { r: 0, g: 50, b: 0 },
+                fence: Color::Grey,
             }
         };
 
@@ -131,7 +115,11 @@ impl WorldSceneStyle {
                         b: 55,
                     };
                     self.flower_colors = [Color::Magenta, Color::Red, Color::Yellow, Color::White];
-                    self.tree_foliage = Color::Green;
+                    self.tree_foliage = Color::Rgb {
+                        r: 55,
+                        g: 145,
+                        b: 55,
+                    };
                 } else {
                     self.grass_primary = Color::DarkGreen;
                     self.grass_secondary = Color::Rgb {
@@ -150,12 +138,15 @@ impl WorldSceneStyle {
                         Color::DarkYellow,
                         Color::Blue,
                     ];
-                    self.tree_foliage = Color::Rgb { r: 0, g: 50, b: 0 };
+                    self.tree_foliage = Color::Rgb {
+                        r: 25,
+                        g: 75,
+                        b: 30,
+                    };
                 }
                 self.flower_chance = 18;
                 self.meadow_flower_chance = 3;
                 self.meadow_grass_chance = 50;
-                self.tree_appearance = TreeAppearance::Blossoming;
             }
             Season::Summer => {
                 if is_day {
@@ -166,16 +157,7 @@ impl WorldSceneStyle {
                         g: 160,
                         b: 60,
                     };
-                    self.tree_foliage = Color::Green;
-                    self.fruit_colors = [
-                        Color::Red,
-                        Color::Yellow,
-                        Color::Rgb {
-                            r: 210,
-                            g: 60,
-                            b: 35,
-                        },
-                    ];
+                    self.tree_foliage = Color::DarkGreen;
                 } else {
                     self.grass_primary = Color::DarkGreen;
                     self.grass_secondary = Color::Rgb { r: 0, g: 40, b: 0 };
@@ -185,20 +167,10 @@ impl WorldSceneStyle {
                         b: 35,
                     };
                     self.tree_foliage = Color::Rgb { r: 0, g: 50, b: 0 };
-                    self.fruit_colors = [
-                        Color::DarkRed,
-                        Color::DarkYellow,
-                        Color::Rgb {
-                            r: 130,
-                            g: 45,
-                            b: 25,
-                        },
-                    ];
                 }
                 self.flower_chance = 3;
                 self.meadow_flower_chance = 10;
                 self.meadow_grass_chance = 60;
-                self.tree_appearance = TreeAppearance::Full;
             }
             Season::Autumn => {
                 if is_day {
@@ -263,7 +235,6 @@ impl WorldSceneStyle {
                 self.flower_chance = 2;
                 self.meadow_flower_chance = 0;
                 self.meadow_grass_chance = 0;
-                self.tree_appearance = TreeAppearance::Autumn;
             }
             Season::Winter => {
                 if is_day {
@@ -312,7 +283,6 @@ impl WorldSceneStyle {
                 self.flower_chance = 0;
                 self.meadow_flower_chance = 0;
                 self.meadow_grass_chance = 0;
-                self.tree_appearance = TreeAppearance::Bare;
             }
         }
     }
@@ -336,6 +306,7 @@ mod tests {
         };
         WorldSceneStyle::resolve(&context)
     }
+
     fn style_for_time(season: Season, is_day: bool) -> WorldSceneStyle {
         let conditions = WeatherConditions {
             sun: crate::weather::types::CelestialEvents::from_bool(is_day),
@@ -351,9 +322,27 @@ mod tests {
     }
 
     #[test]
-    fn seasonal_styles_select_expected_vegetation() {
+    fn seasonal_styles_change_the_environment_not_the_original_house() {
         let spring = style_for(Season::Spring);
-        assert_eq!(spring.tree_appearance, TreeAppearance::Blossoming);
+        let summer = style_for(Season::Summer);
+        let autumn = style_for(Season::Autumn);
+        let winter = style_for(Season::Winter);
+
+        assert_eq!(summer.roof, DEFAULT_PALETTE.accent_primary);
+        assert_eq!(summer.window, Color::Cyan);
+        assert_eq!(summer.wood, winter.wood);
+        assert_eq!(summer.door, winter.door);
+        assert_eq!(summer.trim, winter.trim);
+        assert_ne!(spring.soil, summer.soil);
+        assert_ne!(summer.soil, autumn.soil);
+        assert_ne!(autumn.soil, winter.soil);
+        assert_ne!(spring.grass_primary, summer.grass_primary);
+        assert_ne!(spring.tree_foliage, summer.tree_foliage);
+    }
+
+    #[test]
+    fn seasonal_styles_keep_expected_ground_profiles() {
+        let spring = style_for(Season::Spring);
         assert_eq!(spring.flower_chance, 18);
         assert_eq!(spring.meadow_flower_chance, 3);
         assert_eq!(spring.meadow_grass_chance, 50);
@@ -367,16 +356,10 @@ mod tests {
         );
 
         let summer = style_for(Season::Summer);
-        assert_eq!(summer.tree_appearance, TreeAppearance::Full);
         assert_eq!(summer.flower_chance, 3);
         assert_eq!(summer.meadow_flower_chance, 10);
         assert_eq!(summer.meadow_grass_chance, 60);
         assert!(summer.meadow_grass_chance > summer.meadow_flower_chance);
-        assert!(matches!(
-            summer.roof,
-            Color::Rgb { r, g, b } if r > g && r > b
-        ));
-        assert_eq!(summer.window, DEFAULT_PALETTE.temperature);
         assert_eq!(
             summer.soil,
             Color::Rgb {
@@ -385,14 +368,11 @@ mod tests {
                 b: 60
             }
         );
-        assert_eq!(summer.fruit_colors[0], Color::Red);
 
         let autumn = style_for(Season::Autumn);
-        assert_eq!(autumn.tree_appearance, TreeAppearance::Autumn);
         assert_eq!(autumn.flower_chance, 2);
         assert_eq!(autumn.meadow_flower_chance, 0);
         assert_eq!(autumn.meadow_grass_chance, 0);
-        assert!(autumn.flower_chance < summer.flower_chance);
         assert_eq!(
             autumn.soil,
             Color::Rgb {
@@ -401,26 +381,8 @@ mod tests {
                 b: 34
             }
         );
-        assert_eq!(
-            autumn.flower_colors,
-            [
-                Color::DarkRed,
-                Color::Rgb {
-                    r: 128,
-                    g: 45,
-                    b: 15,
-                },
-                Color::DarkYellow,
-                Color::Rgb {
-                    r: 139,
-                    g: 69,
-                    b: 19,
-                },
-            ]
-        );
 
         let winter = style_for(Season::Winter);
-        assert_eq!(winter.tree_appearance, TreeAppearance::Bare);
         assert_eq!(winter.flower_chance, 0);
         assert_eq!(winter.meadow_flower_chance, 0);
         assert_eq!(winter.meadow_grass_chance, 0);
@@ -456,7 +418,6 @@ mod tests {
 
         let spring_night = style_for_time(Season::Spring, false);
         assert_eq!(spring_night.grass_primary, Color::DarkGreen);
-        assert_eq!(spring_night.tree_foliage, Color::Rgb { r: 0, g: 50, b: 0 });
         assert_eq!(
             spring_night.soil,
             Color::Rgb {

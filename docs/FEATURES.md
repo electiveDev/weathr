@@ -19,12 +19,12 @@ The month mapping is local-time based. December, January, and February all map t
 
 ## Seasonal world design
 
-The world scene always contains the centered house, its ground, and fence when they fit the terminal layout. A second pine tree is added on sufficiently wide terminals. The day/night palette is selected first; the season then adjusts the vegetation, tree silhouette, and ground styling.
+The world scene always contains the centered house, its ground, and fence when they fit the terminal layout. A second pine tree is added on sufficiently wide terminals. The house and tree silhouettes follow the original `Veirt/weathr` composition; the day/night palette is selected first, and the season changes the surrounding vegetation and ground colors.
 
-- **Spring:** bright green grass, a green meadow floor with sparse flowers, frequent flowers, and a medium-sized blossoming tree.
-- **Summer:** saturated grass dominates the lower green meadow, with fewer distributed flowers, the largest full tree, and deterministic red/yellow fruit accents.
-- **Autumn:** muted yellow/brown grass, brown ground, a thinner tree silhouette, and autumn-colored remaining leaves.
-- **Winter:** cool grey-green grass, white frosted ground, no flowers, and a completely bare tree.
+- **Spring:** bright green grass, a green meadow floor with sparse flowers, and frequent flowers.
+- **Summer:** saturated grass dominates the lower green meadow, with fewer distributed flowers.
+- **Autumn:** muted yellow/brown grass, brown ground, and autumn-colored remaining leaves.
+- **Winter:** cool grey-green grass, white frosted ground, and no flowers.
 
 The seasonal world styling is separate from precipitation animations. For example, `--leaves` explicitly enables the falling-leaves foreground system; it is not silently enabled or disabled by the calendar season. Falling leaves are suppressed while rain, thunderstorms, or snow are active.
 
@@ -35,19 +35,18 @@ cannot overwrite the HUD or attribution row. The pond is not part of the fork's 
 
 ### Responsive layout
 
-The renderer selects one of three layouts centrally:
+The renderer selects one of three responsive tiers centrally, while keeping the original-style HUD presentation:
 
-| Terminal size | Layout | HUD placement |
+| Terminal size | Layout tier | HUD placement |
 | --- | --- | --- |
-| `120x28` and larger | Large | Compact card on the right of the scene |
-| `90x23` through `119x27` | Medium | Card above the scene |
-| Supported sizes below Medium | Small | Card below the scene |
+| `120x28` and larger | Large | Unframed summary line above the scene |
+| `90x23` through `119x27` | Medium | Unframed summary line above the scene |
+| Supported sizes below Medium | Small | Unframed summary line above the scene |
 
 The existing minimum terminal size remains `70x20`. The status row is kept separate from the scene
 and HUD. Long city names, timestamps, and provider attribution are fitted inside their region rather
-than spilling into another region. Box-drawing borders are used only when the terminal advertises a
-Unicode-capable environment; ASCII borders remain available through `WEATHR_ASCII` or conservative
-capability detection.
+than spilling into another region. F1 adds one fitted detail line below the summary; no HUD frame is
+drawn.
 
 ## Weather conditions and sky layers
 
@@ -102,7 +101,7 @@ The relevant options are:
 | `-n, --night` | In simulation mode, force night celestial conditions (moon/stars/fireflies can then be exercised). |
 | `--season <SEASON>` | Force `spring`, `summer`, `autumn`, or `winter` instead of the local calendar season. |
 | `-l, --leaves` | Enable falling leaves when rain, thunderstorms, and snow are not active. |
-| `--hide-hud` | Hide the weather card while keeping the independent status/attribution row. |
+| `--hide-hud` | Hide the weather summary while keeping the independent status/attribution row. |
 | `--hide-location` | Keep weather details but omit location information from the HUD. |
 | `--auto-location` | Enable location detection through the configured IP-based lookup. |
 | `--metric` / `--imperial` | Select metric or imperial display units; the two flags conflict. |
@@ -111,13 +110,13 @@ The relevant options are:
 
 ## HUD and keyboard controls
 
-The HUD is shown by default unless configuration or `--hide-hud` disables it. The scene remains the dominant region. The initial compact view prioritizes temperature, condition, location, wind, and precipitation; the same information is stacked more spaciously on large terminals.
+The HUD is shown by default unless configuration or `--hide-hud` disables it. The scene remains the dominant region. The initial top line prioritizes temperature, condition, location, wind, and precipitation and is fitted to the terminal width at every responsive tier.
 
 - **F1** toggles the detail portion of the HUD. It does not hide the weather summary. When details are shown, the HUD can include coordinates, timestamp, wind direction, provider attribution, offline state, and `q quit`; only values present in the current state are shown.
 - **`q` or `Q`** exits the application.
 - **Ctrl+C** exits the application through the normal signal path.
 
-The terminal renderer uses an alternate screen and restores the terminal when the application exits or handles a panic. If the HUD is hidden, F1 still changes the internal detail toggle but no weather card is displayed; the independent status/attribution row remains protected at the bottom.
+The terminal renderer uses an alternate screen and restores the terminal when the application exits or handles a panic. If the HUD is hidden, F1 still changes the internal detail toggle but no weather summary is displayed; the independent status/attribution row remains protected at the bottom.
 
 ## Source cross-check
 

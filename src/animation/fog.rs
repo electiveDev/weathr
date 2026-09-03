@@ -12,7 +12,6 @@ struct FogWisp {
     y: f32,
     speed_x: f32,
     character: char,
-    color: Color,
     lifetime: u32,
     max_lifetime: u32,
 }
@@ -28,23 +27,11 @@ impl FogWisp {
         let chars = ['.', ',', '-', '~'];
         let char_idx = (rng.random::<u32>() as usize) % chars.len();
 
-        let colors = [
-            Color::Grey,
-            Color::DarkGrey,
-            Color::Rgb {
-                r: 120,
-                g: 120,
-                b: 120,
-            },
-        ];
-        let color_idx = (rng.random::<u32>() as usize) % colors.len();
-
         Self {
             x,
             y,
             speed_x: (rng.random::<f32>() - 0.5) * 0.15,
             character: chars[char_idx],
-            color: colors[color_idx],
             lifetime: 0,
             max_lifetime: 100 + (rng.random::<u32>() % 200),
         }
@@ -76,7 +63,7 @@ impl AnimationSystem for FogSystem {
     }
 
     fn layer(&self) -> RenderLayer {
-        RenderLayer::Foreground
+        RenderLayer::Weather
     }
 
     fn is_active(&self, ctx: &FrameContext<'_>) -> bool {
@@ -101,9 +88,9 @@ impl AnimationSystem for FogSystem {
     fn render(
         &mut self,
         renderer: &mut TerminalRenderer,
-        _ctx: &FrameContext<'_>,
+        ctx: &FrameContext<'_>,
     ) -> io::Result<()> {
-        FogSystem::render(self, renderer)
+        FogSystem::render(self, renderer, ctx.visual.fog)
     }
 }
 
@@ -162,14 +149,14 @@ impl FogSystem {
         }
     }
 
-    pub fn render(&self, renderer: &mut TerminalRenderer) -> io::Result<()> {
+    pub fn render(&self, renderer: &mut TerminalRenderer, color: Color) -> io::Result<()> {
         for wisp in &self.wisps {
             let x = wisp.x as i16;
             let y = wisp.y as i16;
 
             if x >= 0 && x < self.terminal_width as i16 && y >= 0 && y < self.terminal_height as i16
             {
-                renderer.render_char(x as u16, y as u16, wisp.character, wisp.color)?;
+                renderer.render_char(x as u16, y as u16, wisp.character, color)?;
             }
         }
         Ok(())

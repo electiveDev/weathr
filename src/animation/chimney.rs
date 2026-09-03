@@ -52,17 +52,6 @@ impl SmokeParticle {
     fn is_alive(&self) -> bool {
         self.age < self.max_age
     }
-
-    fn get_color(&self) -> Color {
-        let life_ratio = self.age as f32 / self.max_age as f32;
-        if life_ratio < 0.3 {
-            Color::White
-        } else if life_ratio < 0.6 {
-            Color::Grey
-        } else {
-            Color::DarkGrey
-        }
-    }
 }
 
 pub struct ChimneySmoke {
@@ -95,7 +84,7 @@ impl ChimneySmoke {
         }
     }
 
-    pub fn render(&self, renderer: &mut TerminalRenderer) -> io::Result<()> {
+    pub fn render(&self, renderer: &mut TerminalRenderer, color: Color) -> io::Result<()> {
         for particle in &self.particles {
             let x = particle.x as i16;
             let y = particle.y as i16;
@@ -108,7 +97,7 @@ impl ChimneySmoke {
                     _ => '·',
                 };
 
-                renderer.render_char(x as u16, y as u16, display_char, particle.get_color())?;
+                renderer.render_char(x as u16, y as u16, display_char, color)?;
             }
         }
         Ok(())
@@ -156,6 +145,6 @@ impl AnimationSystem for ChimneySmoke {
             return Ok(());
         }
 
-        ChimneySmoke::render(self, renderer)
+        ChimneySmoke::render(self, renderer, ctx.visual.smoke)
     }
 }

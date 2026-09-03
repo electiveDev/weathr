@@ -8,6 +8,7 @@ use crate::animation::{
 use crate::app_state::AppState;
 use crate::render::TerminalRenderer;
 use crate::scene::SceneLayout;
+use crate::theme::VisualPalette;
 use crate::weather::{FogIntensity, RainIntensity, SnowIntensity, WeatherConditions};
 use rand::Rng;
 use std::io;
@@ -106,6 +107,7 @@ impl AnimationManager {
         conditions: &'a WeatherConditions,
         state: &'a AppState,
         layout: &SceneLayout,
+        visual: VisualPalette,
     ) -> FrameContext<'a> {
         let chimney = layout
             .chimney_pos
@@ -116,6 +118,8 @@ impl AnimationManager {
                 width: layout.width,
                 height: layout.height,
             },
+            scene_viewport: layout.viewport,
+            visual,
             horizon_y: layout.ground_y,
             conditions,
             state,
@@ -131,27 +135,40 @@ impl AnimationManager {
         ctx: &FrameContext<'_>,
         rng: &mut impl Rng,
     ) -> io::Result<()> {
-        if ctx.size.width == 0 || ctx.size.height == 0 {
-            return Ok(());
-        }
-
         let mut commands = FrameCommands::default();
-
-        for system in &mut self.systems {
-            if system.layer() != layer {
-                continue;
+        renderer.set_viewport(Some(ctx.scene_viewport));
+        let result = (|| {
+            if ctx.size.width == 0 || ctx.size.height == 0 {
+                return Ok(());
             }
-            if !system.is_active(ctx) {
-                continue;
+
+            for system in &mut self.systems {
+                if system.layer() != layer || !system.is_active(ctx) {
+                    continue;
+                }
+                system.update(ctx, rng, &mut commands);
+                system.render(renderer, ctx)?;
             }
-            system.update(ctx, rng, &mut commands);
-            system.render(renderer, ctx)?;
-        }
 
-        if commands.flash_screen {
-            renderer.flash_screen()?;
-        }
+            if commands.flash_screen {
+                renderer.flash_screen()?;
+            }
+            Ok(())
+        })();
+        renderer.clear_viewport();
+        result
+    }
 
+    fn render_layers(
+        &mut self,
+        renderer: &mut TerminalRenderer,
+        layers: &[RenderLayer],
+        ctx: &FrameContext<'_>,
+        rng: &mut impl Rng,
+    ) -> io::Result<()> {
+        for layer in layers {
+            self.render_layer(renderer, *layer, ctx, rng)?;
+        }
         Ok(())
     }
 
@@ -161,10 +178,20 @@ impl AnimationManager {
         conditions: &WeatherConditions,
         state: &AppState,
         layout: &SceneLayout,
+        visual: VisualPalette,
         rng: &mut impl Rng,
     ) -> io::Result<()> {
-        let ctx = self.make_context(conditions, state, layout);
-        self.render_layer(renderer, RenderLayer::Background, &ctx, rng)
+        let ctx = self.make_context(conditions, state, layout, visual);
+        self.render_layers(
+            renderer,
+            &[
+                RenderLayer::Sky,
+                RenderLayer::Celestial,
+                RenderLayer::Clouds,
+            ],
+            &ctx,
+            rng,
+        )
     }
 
     pub fn render_chimney_smoke(
@@ -173,10 +200,11 @@ impl AnimationManager {
         conditions: &WeatherConditions,
         state: &AppState,
         layout: &SceneLayout,
+        visual: VisualPalette,
         rng: &mut impl Rng,
     ) -> io::Result<()> {
-        let ctx = self.make_context(conditions, state, layout);
-        self.render_layer(renderer, RenderLayer::PostScene, &ctx, rng)
+        let ctx = self.make_context(conditions, state, layout, visual);
+        self.render_layers(renderer, &[RenderLayer::PostScene], &ctx, rng)
     }
 
     pub fn render_foreground(
@@ -185,9 +213,15 @@ impl AnimationManager {
         conditions: &WeatherConditions,
         state: &AppState,
         layout: &SceneLayout,
+        visual: VisualPalette,
         rng: &mut impl Rng,
     ) -> io::Result<()> {
-        let ctx = self.make_context(conditions, state, layout);
-        self.render_layer(renderer, RenderLayer::Foreground, &ctx, rng)
+        let ctx = self.make_context(conditions, state, layout, visual);
+        self.render_layers(
+            renderer,
+            &[RenderLayer::Weather, RenderLayer::Foreground],
+            &ctx,
+            rng,
+        )
     }
 }

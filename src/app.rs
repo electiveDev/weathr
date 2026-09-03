@@ -8,6 +8,8 @@ use crate::scene::world::WorldScene;
 use crate::scene::{SceneContext, SceneRegistry};
 use crate::season::Season;
 use crate::theme::ThemeRegistry;
+use crate::theme::VisualPalette;
+use crate::ui::{RenderRegions, hud, status};
 
 use crate::weather::provider::WeatherProvider;
 use crate::weather::provider::met_office::{MetOfficeProvider, MetOfficeProviderConfig};
@@ -161,9 +163,11 @@ impl App {
             config.units,
         );
         let mut animations = AnimationManager::new(term_width, term_height, show_leaves);
+        let initial_regions =
+            RenderRegions::calculate(term_width, term_height, !config.hide_hud, false);
 
         let mut scenes = SceneRegistry::new();
-        scenes.register(Box::new(WorldScene::new(term_width, term_height)));
+        scenes.register(Box::new(WorldScene::new(initial_regions.scene)));
 
         let overlays = OverlayRegistry::new();
         let bindings = resolve_theme_bindings(&themes, &scenes, &overlays);
@@ -277,6 +281,7 @@ impl App {
         }
     }
 
+    #[allow(dead_code)]
     fn hud_text(&self) -> Option<&str> {
         if self.hide_hud {
             None
@@ -352,33 +357,51 @@ impl App {
             let palette = &theme.palette;
 
             let (term_width, term_height) = renderer.get_size();
+            let regions = RenderRegions::calculate(
+                term_width,
+                term_height,
+                !self.hide_hud,
+                !self.hide_hud_details,
+            );
             let scene = self
                 .scenes
                 .get_mut(self.active_scene_id)
                 .expect("active scene must be registered");
-            scene.update_size(term_width, term_height);
+            scene.update_size(regions.scene);
 
             let layout = scene.layout();
+            let visual =
+                VisualPalette::resolve(palette, &self.state.weather_conditions, self.season);
             let ctx = SceneContext {
                 conditions: &self.state.weather_conditions,
                 palette,
+                visual,
                 season: self.season,
             };
+
+            renderer.set_viewport(Some(regions.scene));
+            renderer.fill_viewport(visual.sky)?;
+            renderer.clear_viewport();
 
             self.animations.render_background(
                 renderer,
                 &self.state.weather_conditions,
                 &self.state,
                 &layout,
+                visual,
                 &mut rng,
             )?;
 
+            renderer.set_viewport(Some(layout.viewport));
             scene.render(renderer, &ctx)?;
+            renderer.clear_viewport();
 
             if let Some(ov_id) = self.active_overlay_id {
                 if let Some(overlay) = self.overlays.get_mut(ov_id) {
                     overlay.update_size(term_width, term_height);
+                    renderer.set_viewport(Some(layout.viewport));
                     overlay.render(renderer, &ctx, &layout)?;
+                    renderer.clear_viewport();
                 }
             }
 
@@ -387,6 +410,7 @@ impl App {
                 &self.state.weather_conditions,
                 &self.state,
                 &layout,
+                visual,
                 &mut rng,
             )?;
 
@@ -395,27 +419,28 @@ impl App {
                 &self.state.weather_conditions,
                 &self.state,
                 &layout,
+                visual,
                 &mut rng,
             )?;
 
             self.state.update_loading_animation();
             self.state.update_cached_info();
 
-            if let Some(hud_text) = self.hud_text() {
-                renderer.render_line_colored(2, 1, hud_text, crossterm::style::Color::Cyan)?;
-            }
-
-            let attribution_x = if term_width > attribution.len() as u16 {
-                term_width - attribution.len() as u16 - 2
-            } else {
-                0
-            };
-            let attribution_y = if term_height > 0 { term_height - 1 } else { 0 };
-            renderer.render_line_colored(
-                attribution_x,
-                attribution_y,
+            hud::render(
+                renderer,
+                &self.state,
                 &attribution,
-                crossterm::style::Color::DarkGrey,
+                &regions,
+                visual,
+                !self.hide_hud_details,
+            )?;
+            status::render(
+                renderer,
+                regions.status,
+                &attribution,
+                self.state.is_offline,
+                !self.hide_hud_details,
+                visual,
             )?;
 
             renderer.flush()?;
@@ -425,7 +450,14 @@ impl App {
                     Event::Resize(width, height) => {
                         renderer.manual_resize(width, height)?;
                         let (new_width, new_height) = renderer.get_size();
-                        self.animations.on_resize(new_width, new_height);
+                        let new_regions = RenderRegions::calculate(
+                            new_width,
+                            new_height,
+                            !self.hide_hud,
+                            !self.hide_hud_details,
+                        );
+                        self.animations
+                            .on_resize(new_regions.scene.width, new_regions.scene.height);
                     }
                     Event::Key(key_event) if self.handle_key(key_event) => break,
                     Event::Key(_) => {}
@@ -446,6 +478,7 @@ mod tests {
     use crate::scene::{Scene, SceneContext, SceneLayout};
     use crate::theme::catalogue::DEFAULT_PALETTE;
     use crate::theme::{Theme, ThemeRegistry};
+    use crate::ui::Rect;
     use std::io;
     fn test_app() -> App {
         App::new(
@@ -492,8 +525,10 @@ mod tests {
     }
     #[test]
     fn config_hide_hud_still_hides_entire_line() {
-        let mut config = Config::default();
-        config.hide_hud = true;
+        let config = Config {
+            hide_hud: true,
+            ..Config::default()
+        };
         let mut app = App::new(
             &config,
             Some("clear".to_string()),
@@ -525,7 +560,7 @@ mod tests {
             self.id
         }
 
-        fn update_size(&mut self, _width: u16, _height: u16) {}
+        fn update_size(&mut self, _viewport: Rect) {}
 
         fn render(
             &self,
@@ -537,6 +572,7 @@ mod tests {
 
         fn layout(&self) -> SceneLayout {
             SceneLayout {
+                viewport: Rect::default(),
                 ground_y: 0,
                 chimney_pos: None,
                 width: 0,

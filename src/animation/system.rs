@@ -1,13 +1,18 @@
 use crate::app_state::AppState;
 use crate::render::TerminalRenderer;
+use crate::theme::VisualPalette;
+use crate::ui::Rect;
 use crate::weather::{FogIntensity, RainIntensity, SnowIntensity, WeatherConditions};
 use rand::Rng;
 use std::io;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RenderLayer {
-    Background,
+    Sky,
+    Celestial,
+    Clouds,
     PostScene,
+    Weather,
     Foreground,
 }
 
@@ -30,6 +35,8 @@ pub struct FrameCommands {
 
 pub struct FrameContext<'a> {
     pub size: TerminalSize,
+    pub scene_viewport: Rect,
+    pub visual: VisualPalette,
     pub horizon_y: u16,
     pub conditions: &'a WeatherConditions,
     pub state: &'a AppState,

@@ -24,10 +24,6 @@ use std::io;
 pub trait Animation {
     fn get_frame(&self, frame_number: usize) -> &[String];
     fn frame_count(&self) -> usize;
-
-    fn get_color(&self) -> Color {
-        Color::Reset
-    }
 }
 
 pub struct AnimationController {
@@ -44,14 +40,14 @@ impl AnimationController {
         self.current_frame
     }
 
-    pub fn render_frame<A: Animation>(
+    pub fn render_frame_colored<A: Animation>(
         &self,
         renderer: &mut TerminalRenderer,
         animation: &A,
         y_offset: u16,
+        color: Color,
     ) -> io::Result<()> {
         let frame = animation.get_frame(self.current_frame);
-        let color = animation.get_color();
         renderer.render_centered_colored(frame, y_offset, color)
     }
 

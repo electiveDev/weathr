@@ -1,7 +1,5 @@
 use crate::animation::{AnimationSystem, FrameCommands, FrameContext, RenderLayer, TerminalSize};
 use crate::render::TerminalRenderer;
-use crossterm::style::Color;
-
 use rand::{Rng, RngExt};
 use std::io;
 
@@ -64,12 +62,16 @@ impl BirdSystem {
         }
     }
 
-    pub fn render(&self, renderer: &mut TerminalRenderer) -> io::Result<()> {
+    pub fn render(
+        &self,
+        renderer: &mut TerminalRenderer,
+        color: crossterm::style::Color,
+    ) -> io::Result<()> {
         for bird in &self.birds {
             let x = bird.x as u16;
             let y = bird.y as u16;
             if x < self.terminal_width && y < self.terminal_height {
-                renderer.render_char(x, y, bird.character, Color::White)?;
+                renderer.render_char(x, y, bird.character, color)?;
             }
         }
         Ok(())
@@ -82,7 +84,7 @@ impl AnimationSystem for BirdSystem {
     }
 
     fn layer(&self) -> RenderLayer {
-        RenderLayer::Background
+        RenderLayer::Clouds
     }
 
     fn is_active(&self, ctx: &FrameContext<'_>) -> bool {
@@ -106,8 +108,8 @@ impl AnimationSystem for BirdSystem {
     fn render(
         &mut self,
         renderer: &mut TerminalRenderer,
-        _ctx: &FrameContext<'_>,
+        ctx: &FrameContext<'_>,
     ) -> io::Result<()> {
-        BirdSystem::render(self, renderer)
+        BirdSystem::render(self, renderer, ctx.visual.text_primary)
     }
 }

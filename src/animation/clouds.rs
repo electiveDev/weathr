@@ -43,13 +43,7 @@ pub struct CloudSystem {
 }
 
 impl CloudSystem {
-    pub fn set_cloud_color(&mut self, is_clear: bool) {
-        let color = if is_clear {
-            Color::White
-        } else {
-            Color::DarkGrey
-        };
-
+    pub fn set_cloud_color(&mut self, color: Color) {
         for cloud in &mut self.clouds {
             cloud.color = color;
         }
@@ -217,7 +211,7 @@ impl AnimationSystem for CloudSystem {
     }
 
     fn layer(&self) -> RenderLayer {
-        RenderLayer::Background
+        RenderLayer::Clouds
     }
 
     fn is_active(&self, ctx: &FrameContext<'_>) -> bool {
@@ -237,17 +231,14 @@ impl AnimationSystem for CloudSystem {
     }
 
     fn update(&mut self, ctx: &FrameContext<'_>, rng: &mut dyn Rng, _commands: &mut FrameCommands) {
-        let (is_clear, cloud_color) = if let Some(weather) = &ctx.state.current_weather {
-            match weather.condition {
-                crate::weather::WeatherCondition::Clear => (true, Color::White),
-                crate::weather::WeatherCondition::PartlyCloudy => (false, Color::Grey),
-                _ => (false, Color::DarkGrey),
-            }
+        let is_clear = if let Some(weather) = &ctx.state.current_weather {
+            matches!(weather.condition, crate::weather::WeatherCondition::Clear)
         } else {
-            (false, Color::DarkGrey)
+            false
         };
+        let cloud_color = ctx.visual.cloud;
 
-        self.set_cloud_color(is_clear);
+        self.set_cloud_color(ctx.visual.cloud);
         self.update(ctx.size.width, ctx.size.height, is_clear, cloud_color, rng);
     }
 
@@ -265,6 +256,8 @@ mod tests {
     use super::*;
     use crate::app_state::AppState;
     use crate::config::LocationDisplay;
+    use crate::theme::VisualPalette;
+    use crate::ui::Rect;
     use crate::weather::types::CelestialEvents;
     use crate::weather::{WeatherCondition, WeatherData, WeatherLocation, WeatherUnits};
 
@@ -311,6 +304,8 @@ mod tests {
                     width: 80,
                     height: 24,
                 },
+                scene_viewport: Rect::new(0, 0, 80, 24),
+                visual: VisualPalette::default(),
                 horizon_y: 18,
                 conditions: &state.weather_conditions,
                 state: &state,

@@ -5,6 +5,7 @@ mod style;
 
 use crate::render::TerminalRenderer;
 use crate::scene::{ChimneyPosition, Scene, SceneContext, SceneLayout};
+use crate::ui::Rect;
 use decorations::{DecorationLayout, Decorations};
 use ground::Ground;
 use house::House;
@@ -15,20 +16,22 @@ pub struct WorldScene {
     house: House,
     ground: Ground,
     decorations: Decorations,
-    width: u16,
-    height: u16,
+    viewport: Rect,
 }
 
 impl WorldScene {
     const GROUND_HEIGHT: u16 = 7;
 
-    pub fn new(width: u16, height: u16) -> Self {
+    fn ground_height(scene_height: u16) -> u16 {
+        Self::GROUND_HEIGHT.min(scene_height.saturating_sub(House.height()))
+    }
+
+    pub fn new(viewport: Rect) -> Self {
         Self {
             house: House,
             ground: Ground,
             decorations: Decorations,
-            width,
-            height,
+            viewport,
         }
     }
 }
@@ -38,38 +41,41 @@ impl Scene for WorldScene {
         "world"
     }
 
-    fn update_size(&mut self, width: u16, height: u16) {
-        self.width = width;
-        self.height = height;
+    fn update_size(&mut self, viewport: Rect) {
+        self.viewport = viewport;
     }
 
     fn layout(&self) -> SceneLayout {
-        let ground_y = self.height.saturating_sub(Self::GROUND_HEIGHT);
-        let house_x = (self.width / 2).saturating_sub(House::WIDTH / 2);
-        let house_y = ground_y.saturating_sub(House::HEIGHT);
+        let width = self.viewport.width;
+        let height = self.viewport.height;
+        let ground_height = Self::ground_height(height);
+        let ground_y = height.saturating_sub(ground_height);
+        let house_x = (width / 2).saturating_sub(self.house.width() / 2);
+        let house_y = ground_y.saturating_sub(self.house.height());
         let chimney_x = house_x + House::CHIMNEY_X_OFFSET;
 
         SceneLayout {
+            viewport: self.viewport,
             ground_y,
             chimney_pos: Some(ChimneyPosition {
                 x: chimney_x,
                 y: house_y,
             }),
-            width: self.width,
-            height: self.height,
+            width,
+            height,
         }
     }
 
     fn render(&self, renderer: &mut TerminalRenderer, ctx: &SceneContext<'_>) -> io::Result<()> {
         let layout = self.layout();
-        let house_x = (self.width / 2).saturating_sub(self.house.width() / 2);
+        let house_x = (layout.width / 2).saturating_sub(self.house.width() / 2);
         let house_y = layout.ground_y.saturating_sub(self.house.height());
         let style = WorldSceneStyle::resolve(ctx);
 
         self.ground.render(
             renderer,
-            self.width,
-            Self::GROUND_HEIGHT,
+            layout.width,
+            Self::ground_height(layout.height),
             layout.ground_y,
             &style,
         )?;
@@ -80,7 +86,7 @@ impl Scene for WorldScene {
                 horizon_y: layout.ground_y,
                 house_x,
                 house_width: self.house.width(),
-                width: self.width,
+                width: layout.width,
             },
             &style,
         )?;

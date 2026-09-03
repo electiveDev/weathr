@@ -6,6 +6,11 @@ This fork defaults to the DWD global ICON weather model.
 A terminal weather app with real-time data, ASCII animations, automatic location detection,
 and day/night scenes.
 
+The current fork presents the scene as the primary view and places a compact weather card beside,
+above, or below it depending on terminal size. The card prioritizes temperature, condition,
+location, wind, and precipitation. F1 expands the card with available coordinates, timestamp,
+source, and controls; the scene and its animations remain visible in every layout.
+
 ## Demo
 
 ![Thunderstorm night](docs/thunderstorm-night.gif)
@@ -68,7 +73,7 @@ autumn: September-November, winter: December-February); pass it to override the 
 with live weather or an offline preview. Simulation mode previews weather scenes without requesting
 live forecast data.
 
-Press F1 to show or hide the HUD location and quit hint (hidden by default); press q or Ctrl+C to exit.
+Press F1 to show or hide the HUD details (hidden by default); press q or Ctrl+C to exit.
 Clear weather has no cloud animation, while cloudy conditions do; dry daytime scenes can also show
 white bird animation. See the [feature reference](docs/FEATURES.md) for verified behavior and
 the [operations runbook](docs/OPERATIONS.md) for the tmux watchdog's safety contract. Use

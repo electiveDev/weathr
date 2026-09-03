@@ -93,38 +93,41 @@ impl AppState {
         }
     }
 
+    pub fn location_label(&self) -> Option<String> {
+        if self.hide_location {
+            return None;
+        }
+
+        let (lat_value, lat_dir) = if self.location.latitude >= 0.0 {
+            (self.location.latitude, "N")
+        } else {
+            (-self.location.latitude, "S")
+        };
+        let (lon_value, lon_dir) = if self.location.longitude >= 0.0 {
+            (self.location.longitude, "E")
+        } else {
+            (-self.location.longitude, "W")
+        };
+        let coords = format!("{:.2}°{}, {:.2}°{}", lat_value, lat_dir, lon_value, lon_dir);
+
+        Some(match self.location_display {
+            LocationDisplay::Coordinates => coords,
+            LocationDisplay::City => self.city_name.clone().unwrap_or(coords),
+            LocationDisplay::Mixed => self
+                .city_name
+                .as_ref()
+                .map_or(coords.clone(), |city| format!("{} ({})", city, coords)),
+        })
+    }
+
     pub fn update_cached_info(&mut self) {
         if !self.weather_info_needs_update {
             return;
         }
 
-        let location_str = if self.hide_location {
-            String::new()
-        } else {
-            let (lat_value, lat_dir) = if self.location.latitude >= 0.0 {
-                (self.location.latitude, "N")
-            } else {
-                (-self.location.latitude, "S")
-            };
-            let (lon_value, lon_dir) = if self.location.longitude >= 0.0 {
-                (self.location.longitude, "E")
-            } else {
-                (-self.location.longitude, "W")
-            };
-            let coords = format!("{:.2}°{}, {:.2}°{}", lat_value, lat_dir, lon_value, lon_dir);
-            let label = match self.location_display {
-                LocationDisplay::Coordinates => coords,
-                LocationDisplay::City => match &self.city_name {
-                    Some(city) => city.clone(),
-                    None => coords,
-                },
-                LocationDisplay::Mixed => match &self.city_name {
-                    Some(city) => format!("{} ({})", city, coords),
-                    None => coords,
-                },
-            };
-            format!(" | Location: {}", label)
-        };
+        let location_str = self
+            .location_label()
+            .map_or_else(String::new, |label| format!(" | Location: {}", label));
 
         if let Some(weather) = &self.current_weather {
             let (temp, temp_unit) = format_temperature(weather.temperature, self.units.temperature);
@@ -158,6 +161,7 @@ impl AppState {
         self.weather_info_needs_update = false;
     }
 
+    #[allow(dead_code)]
     pub fn hud_text(&self, show_details: bool) -> &str {
         if show_details {
             &self.cached_weather_info

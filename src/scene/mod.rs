@@ -3,7 +3,8 @@ pub mod world;
 
 use crate::render::TerminalRenderer;
 use crate::season::Season;
-use crate::theme::Palette;
+use crate::theme::{Palette, VisualPalette};
+use crate::ui::Rect;
 use crate::weather::WeatherConditions;
 use std::collections::HashMap;
 use std::io;
@@ -11,13 +12,12 @@ use std::io;
 pub struct SceneContext<'a> {
     pub conditions: &'a WeatherConditions,
     pub palette: &'a Palette,
+    pub visual: VisualPalette,
     pub season: Season,
 }
-pub const HOUSE_WIDTH: u16 = 64;
-pub const HOUSE_HEIGHT: u16 = 10;
-
 #[derive(Clone, Copy)]
 pub struct SceneLayout {
+    pub viewport: Rect,
     pub ground_y: u16,
     pub chimney_pos: Option<ChimneyPosition>,
     pub width: u16,
@@ -32,7 +32,7 @@ pub struct ChimneyPosition {
 
 pub trait Scene: Send + Sync {
     fn id(&self) -> &'static str;
-    fn update_size(&mut self, width: u16, height: u16);
+    fn update_size(&mut self, viewport: Rect);
     fn render(&self, renderer: &mut TerminalRenderer, ctx: &SceneContext<'_>) -> io::Result<()>;
     fn layout(&self) -> SceneLayout;
 }

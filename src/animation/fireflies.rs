@@ -86,23 +86,15 @@ impl Firefly {
         }
     }
 
-    fn get_color(&self) -> Color {
+    fn get_color(&self, palette: crate::theme::VisualPalette) -> Color {
         if self.brightness > 200 {
-            Color::Yellow
+            palette.temperature
         } else if self.brightness > 128 {
-            Color::Rgb {
-                r: 200,
-                g: 255,
-                b: 100,
-            }
+            palette.condition
         } else if self.brightness > 64 {
-            Color::Rgb {
-                r: 150,
-                g: 200,
-                b: 80,
-            }
+            palette.vegetation
         } else {
-            Color::DarkGrey
+            palette.text_muted
         }
     }
 
@@ -149,7 +141,11 @@ impl FireflySystem {
         }
     }
 
-    pub fn render(&self, renderer: &mut TerminalRenderer) -> io::Result<()> {
+    pub fn render(
+        &self,
+        renderer: &mut TerminalRenderer,
+        palette: crate::theme::VisualPalette,
+    ) -> io::Result<()> {
         for firefly in &self.fireflies {
             if firefly.is_visible() {
                 let x = firefly.x as i16;
@@ -160,11 +156,17 @@ impl FireflySystem {
                     && x < self.terminal_width as i16
                     && y < self.terminal_height as i16
                 {
+                    let character = if renderer.supports_unicode() || firefly.get_character() != '·'
+                    {
+                        firefly.get_character()
+                    } else {
+                        '.'
+                    };
                     renderer.render_char(
                         x as u16,
                         y as u16,
-                        firefly.get_character(),
-                        firefly.get_color(),
+                        character,
+                        firefly.get_color(palette),
                     )?;
                 }
             }
@@ -179,7 +181,7 @@ impl AnimationSystem for FireflySystem {
     }
 
     fn layer(&self) -> RenderLayer {
-        RenderLayer::Background
+        RenderLayer::PostScene
     }
 
     fn is_active(&self, ctx: &FrameContext<'_>) -> bool {
@@ -203,8 +205,8 @@ impl AnimationSystem for FireflySystem {
     fn render(
         &mut self,
         renderer: &mut TerminalRenderer,
-        _ctx: &FrameContext<'_>,
+        ctx: &FrameContext<'_>,
     ) -> io::Result<()> {
-        FireflySystem::render(self, renderer)
+        FireflySystem::render(self, renderer, ctx.visual)
     }
 }

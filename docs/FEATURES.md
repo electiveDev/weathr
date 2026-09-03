@@ -1,6 +1,6 @@
 # weathr feature reference
 
-This page records the behavior implemented by the current `weathr` binary. It is a user-facing reference for the seasonal renderer, weather simulation, animation layers, HUD, and keyboard controls.
+This page records the behavior implemented by the current `weathr` binary. It is a user-facing reference for the seasonal renderer, weather simulation, animation layers, responsive HUD, and keyboard controls.
 
 ## Seasons
 
@@ -28,6 +28,27 @@ The world scene always contains the centered house and its ground, fence, and ma
 
 The seasonal world styling is separate from precipitation animations. For example, `--leaves` explicitly enables the falling-leaves foreground system; it is not silently enabled or disabled by the calendar season. Falling leaves are suppressed while rain, thunderstorms, or snow are active.
 
+The world uses a theme-driven palette whose final roles combine the selected theme with day/night,
+weather, and season. The house, ground, trees, fence, and mailbox are laid out inside a dedicated
+scene viewport; weather particles and atmospheric animations are clipped to that viewport so they
+cannot overwrite the HUD or attribution row. The pond is not part of the fork's world composition.
+
+### Responsive layout
+
+The renderer selects one of three layouts centrally:
+
+| Terminal size | Layout | HUD placement |
+| --- | --- | --- |
+| `120x28` and larger | Large | Compact card on the right of the scene |
+| `90x23` through `119x27` | Medium | Card above the scene |
+| Supported sizes below Medium | Small | Card below the scene |
+
+The existing minimum terminal size remains `70x20`. The status row is kept separate from the scene
+and HUD. Long city names, timestamps, and provider attribution are fitted inside their region rather
+than spilling into another region. Box-drawing borders are used only when the terminal advertises a
+Unicode-capable environment; ASCII borders remain available through `WEATHR_ASCII` or conservative
+capability detection.
+
 ## Weather conditions and sky layers
 
 `--simulate` accepts the following condition values:
@@ -49,7 +70,7 @@ Condition names are case-insensitive, and underscores are accepted where the CLI
 
 ## Birds
 
-Birds are a background animation system. It maintains at most three birds, spawns them occasionally in the upper third of the terminal, moves them horizontally, and alternates the `v` and `-` characters to flap their wings. Every bird is rendered with `Color::White`, independent of the active theme palette.
+Birds are a background animation system. It maintains at most three birds, spawns them occasionally in the upper third of the scene viewport, moves them horizontally, and alternates the `v` and `-` characters to flap their wings. Birds use the active semantic text palette so they remain legible in the current theme.
 
 The bird system is active during the day when rain, thunderstorms, and snow are not active. It can therefore appear over clear or cloud-covered daytime conditions (and is not itself the cloud layer). It is inactive at night and during the excluded precipitation/storm conditions.
 
@@ -81,7 +102,7 @@ The relevant options are:
 | `-n, --night` | In simulation mode, force night celestial conditions (moon/stars/fireflies can then be exercised). |
 | `--season <SEASON>` | Force `spring`, `summer`, `autumn`, or `winter` instead of the local calendar season. |
 | `-l, --leaves` | Enable falling leaves when rain, thunderstorms, and snow are not active. |
-| `--hide-hud` | Hide the complete HUD status line. |
+| `--hide-hud` | Hide the weather card while keeping the independent status/attribution row. |
 | `--hide-location` | Keep weather details but omit location information from the HUD. |
 | `--auto-location` | Enable location detection through the configured IP-based lookup. |
 | `--metric` / `--imperial` | Select metric or imperial display units; the two flags conflict. |
@@ -90,13 +111,13 @@ The relevant options are:
 
 ## HUD and keyboard controls
 
-The HUD is shown by default unless configuration or `--hide-hud` disables it. The initial HUD view contains the weather summary (condition, temperature, wind, and precipitation). The location and quit hint are detail text hidden by default.
+The HUD is shown by default unless configuration or `--hide-hud` disables it. The scene remains the dominant region. The initial compact view prioritizes temperature, condition, location, wind, and precipitation; the same information is stacked more spaciously on large terminals.
 
-- **F1** toggles the detail portion of the HUD. It does not hide the weather summary. When details are shown, the HUD can include location information and `Press 'q' to quit` (unless location display is disabled).
+- **F1** toggles the detail portion of the HUD. It does not hide the weather summary. When details are shown, the HUD can include coordinates, timestamp, wind direction, provider attribution, offline state, and `q quit`; only values present in the current state are shown.
 - **`q` or `Q`** exits the application.
 - **Ctrl+C** exits the application through the normal signal path.
 
-The terminal renderer uses an alternate screen and restores the terminal when the application exits or handles a panic. If the HUD is hidden, F1 still changes the internal detail toggle but no HUD line is displayed.
+The terminal renderer uses an alternate screen and restores the terminal when the application exits or handles a panic. If the HUD is hidden, F1 still changes the internal detail toggle but no weather card is displayed; the independent status/attribution row remains protected at the bottom.
 
 ## Source cross-check
 

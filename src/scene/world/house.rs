@@ -1,22 +1,25 @@
 use crate::render::TerminalRenderer;
 use crate::scene::world::style::WorldSceneStyle;
 use std::io;
+use unicode_width::UnicodeWidthStr;
 
 const HOUSE_ASCII: &str = include_str!("assets/house.txt");
 
 pub struct House;
 
 impl House {
-    pub const WIDTH: u16 = crate::scene::HOUSE_WIDTH;
-    pub const HEIGHT: u16 = crate::scene::HOUSE_HEIGHT;
-    pub const CHIMNEY_X_OFFSET: u16 = 12;
+    pub const CHIMNEY_X_OFFSET: u16 = 25;
 
     pub fn width(&self) -> u16 {
-        Self::WIDTH
+        HOUSE_ASCII
+            .lines()
+            .map(UnicodeWidthStr::width)
+            .max()
+            .unwrap_or(0) as u16
     }
 
     pub fn height(&self) -> u16 {
-        Self::HEIGHT
+        HOUSE_ASCII.lines().count() as u16
     }
 
     pub fn render(

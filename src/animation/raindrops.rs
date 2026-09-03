@@ -17,7 +17,6 @@ struct Raindrop {
     speed_y: f32,
     speed_x: f32,
     character: char,
-    color: Color,
     z_index: u8,
 }
 
@@ -90,33 +89,12 @@ impl RaindropSystem {
         let x = (rng.random::<u32>() % span) as f32 - (self.terminal_width as f32 * 0.5);
         let z_index = if rng.random::<bool>() { 1 } else { 0 };
 
-        let (speed_y, chars, color) = match self.intensity {
-            RainIntensity::Drizzle => (
-                if z_index == 1 { 0.4 } else { 0.2 },
-                vec!['.', ','],
-                if z_index == 1 {
-                    Color::Cyan
-                } else {
-                    Color::DarkGrey
-                },
-            ),
-            RainIntensity::Light => (
-                if z_index == 1 { 0.7 } else { 0.4 },
-                vec!['|', ':', '.'],
-                if z_index == 1 {
-                    Color::White
-                } else {
-                    Color::DarkGrey
-                },
-            ),
+        let (speed_y, chars) = match self.intensity {
+            RainIntensity::Drizzle => (if z_index == 1 { 0.4 } else { 0.2 }, vec!['.', ',']),
+            RainIntensity::Light => (if z_index == 1 { 0.7 } else { 0.4 }, vec!['|', ':', '.']),
             RainIntensity::Heavy => (
                 if z_index == 1 { 0.9 } else { 0.6 }, // Slightly faster than Light
                 vec!['|', ':'],                       // Vertical density
-                if z_index == 1 {
-                    Color::Cyan
-                } else {
-                    Color::DarkGrey // Blue-ish background
-                },
             ),
             RainIntensity::Storm => (
                 if z_index == 1 { 1.8 } else { 1.2 },
@@ -125,11 +103,6 @@ impl RaindropSystem {
                     vec!['\\']
                 } else {
                     vec!['/']
-                },
-                if z_index == 1 {
-                    Color::White
-                } else {
-                    Color::DarkGrey
                 },
             ),
         };
@@ -142,7 +115,6 @@ impl RaindropSystem {
             speed_y: speed_y + (rng.random::<f32>() * 0.2),
             speed_x: self.wind_x + (rng.random::<f32>() * 0.1 - 0.05),
             character: chars[char_idx],
-            color,
             z_index,
         });
     }
@@ -221,7 +193,12 @@ impl RaindropSystem {
         });
     }
 
-    pub fn render(&self, renderer: &mut TerminalRenderer) -> io::Result<()> {
+    pub fn render(
+        &self,
+        renderer: &mut TerminalRenderer,
+        primary_color: Color,
+        muted_color: Color,
+    ) -> io::Result<()> {
         // Render drops
         for drop in &self.drops {
             let x = drop.x as i16;
@@ -242,7 +219,12 @@ impl RaindropSystem {
                 } else {
                     drop.character
                 };
-                renderer.render_char(x as u16, y as u16, ch, drop.color)?;
+                let color = if drop.z_index == 1 {
+                    primary_color
+                } else {
+                    muted_color
+                };
+                renderer.render_char(x as u16, y as u16, ch, color)?;
             }
         }
 
@@ -269,7 +251,7 @@ impl AnimationSystem for RaindropSystem {
     }
 
     fn layer(&self) -> RenderLayer {
-        RenderLayer::Foreground
+        RenderLayer::Weather
     }
 
     fn is_active(&self, ctx: &FrameContext<'_>) -> bool {
@@ -304,8 +286,8 @@ impl AnimationSystem for RaindropSystem {
     fn render(
         &mut self,
         renderer: &mut TerminalRenderer,
-        _ctx: &FrameContext<'_>,
+        ctx: &FrameContext<'_>,
     ) -> io::Result<()> {
-        RaindropSystem::render(self, renderer)
+        RaindropSystem::render(self, renderer, ctx.visual.rain, ctx.visual.text_muted)
     }
 }

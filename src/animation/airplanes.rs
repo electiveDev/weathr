@@ -59,7 +59,11 @@ impl AirplaneSystem {
         self.planes.push(Airplane { x: 0.0, y, speed });
     }
 
-    pub fn render(&self, renderer: &mut TerminalRenderer) -> io::Result<()> {
+    pub fn render(
+        &self,
+        renderer: &mut TerminalRenderer,
+        color: crossterm::style::Color,
+    ) -> io::Result<()> {
         const AIRPLANE_ART: &str = include_str!("assets/airplane.txt");
 
         for plane in &self.planes {
@@ -88,7 +92,7 @@ impl AirplaneSystem {
 
                             '~' => Color::Grey,
 
-                            _ => Color::White,
+                            _ => color,
                         };
                         renderer.render_char(render_x, render_y, ch, color)?;
                     }
@@ -105,7 +109,7 @@ impl AnimationSystem for AirplaneSystem {
     }
 
     fn layer(&self) -> RenderLayer {
-        RenderLayer::Background
+        RenderLayer::Clouds
     }
 
     fn is_active(&self, ctx: &FrameContext<'_>) -> bool {
@@ -129,8 +133,8 @@ impl AnimationSystem for AirplaneSystem {
     fn render(
         &mut self,
         renderer: &mut TerminalRenderer,
-        _ctx: &FrameContext<'_>,
+        ctx: &FrameContext<'_>,
     ) -> io::Result<()> {
-        AirplaneSystem::render(self, renderer)
+        AirplaneSystem::render(self, renderer, ctx.visual.text_primary)
     }
 }

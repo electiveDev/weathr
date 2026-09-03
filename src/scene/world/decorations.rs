@@ -44,7 +44,7 @@ impl Decorations {
         self.render_fence(renderer, layout, style)?;
         self.render_mailbox(renderer, layout, style)?;
 
-        if layout.width > 120 {
+        if layout.width > 100 {
             self.render_pine_tree(renderer, layout, style)?;
         }
 
@@ -57,16 +57,24 @@ impl Decorations {
         layout: &DecorationLayout,
         style: &WorldSceneStyle,
     ) -> io::Result<()> {
-        let tree_x = layout.house_x.saturating_sub(20);
-        if tree_x == 0 {
-            return Ok(());
-        }
         let tree_ascii = match style.tree_appearance {
             TreeAppearance::Bare => WINTER_TREE_ASCII,
             TreeAppearance::Blossoming => SPRING_TREE_ASCII,
             TreeAppearance::Autumn => AUTUMN_TREE_ASCII,
             TreeAppearance::Full => TREE_ASCII,
         };
+        let tree_width = tree_ascii
+            .lines()
+            .map(|line| line.chars().count())
+            .max()
+            .unwrap_or(0) as u16;
+        if tree_width == 0 || layout.width < tree_width {
+            return Ok(());
+        }
+        let tree_x = layout
+            .house_x
+            .saturating_sub(18)
+            .min(layout.width.saturating_sub(tree_width));
         let line_count = tree_ascii.lines().count() as u16;
         let tree_y = layout.horizon_y.saturating_sub(line_count);
         render_art(renderer, tree_ascii, tree_x, tree_y, style.tree_foliage)?;
@@ -108,7 +116,7 @@ impl Decorations {
         layout: &DecorationLayout,
         style: &WorldSceneStyle,
     ) -> io::Result<()> {
-        let fence_x = layout.house_x + layout.house_width + 2;
+        let fence_x = layout.house_x.saturating_add(layout.house_width + 2);
         if fence_x >= layout.width {
             return Ok(());
         }

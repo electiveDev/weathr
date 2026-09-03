@@ -1,7 +1,5 @@
 use crate::animation::{AnimationSystem, FrameCommands, FrameContext, RenderLayer, TerminalSize};
 use crate::render::TerminalRenderer;
-use crossterm::style::Color;
-
 use rand::{Rng, RngExt};
 use std::collections::VecDeque;
 use std::io;
@@ -185,11 +183,15 @@ impl ThunderstormSystem {
         }
     }
 
-    pub fn render(&self, renderer: &mut TerminalRenderer) -> io::Result<()> {
+    pub fn render(
+        &self,
+        renderer: &mut TerminalRenderer,
+        palette: crate::theme::VisualPalette,
+    ) -> io::Result<()> {
         let color = if self.flash_active {
-            Color::White
+            palette.text_primary
         } else {
-            Color::Yellow
+            palette.thunderstorm
         };
 
         for bolt in &self.bolts {
@@ -207,7 +209,7 @@ impl AnimationSystem for ThunderstormSystem {
     }
 
     fn layer(&self) -> RenderLayer {
-        RenderLayer::Foreground
+        RenderLayer::Weather
     }
 
     fn is_active(&self, ctx: &FrameContext<'_>) -> bool {
@@ -234,8 +236,8 @@ impl AnimationSystem for ThunderstormSystem {
     fn render(
         &mut self,
         renderer: &mut TerminalRenderer,
-        _ctx: &FrameContext<'_>,
+        ctx: &FrameContext<'_>,
     ) -> io::Result<()> {
-        ThunderstormSystem::render(self, renderer)
+        ThunderstormSystem::render(self, renderer, ctx.visual)
     }
 }

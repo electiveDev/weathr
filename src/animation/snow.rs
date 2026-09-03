@@ -15,7 +15,6 @@ struct Snowflake {
     speed_x: f32,
     sway_offset: f32,
     character: char,
-    color: Color,
 }
 
 pub struct SnowSystem {
@@ -92,11 +91,6 @@ impl SnowSystem {
             speed_x: self.wind_x + (rng.random::<f32>() * 0.1 - 0.05),
             sway_offset: rng.random::<f32>() * 100.0, // Random phase for sway
             character: chars[char_idx],
-            color: if z_index == 1 {
-                Color::White
-            } else {
-                Color::DarkGrey
-            },
         });
     }
 
@@ -149,14 +143,19 @@ impl SnowSystem {
         });
     }
 
-    pub fn render(&self, renderer: &mut TerminalRenderer) -> io::Result<()> {
+    pub fn render(&self, renderer: &mut TerminalRenderer, color: Color) -> io::Result<()> {
         for flake in &self.flakes {
             let x = flake.x as i16;
             let y = flake.y as i16;
 
             if x >= 0 && x < self.terminal_width as i16 && y >= 0 && y < self.terminal_height as i16
             {
-                renderer.render_char(x as u16, y as u16, flake.character, flake.color)?;
+                let character = if renderer.supports_unicode() || flake.character != '·' {
+                    flake.character
+                } else {
+                    '.'
+                };
+                renderer.render_char(x as u16, y as u16, character, color)?;
             }
         }
         Ok(())
@@ -169,7 +168,7 @@ impl AnimationSystem for SnowSystem {
     }
 
     fn layer(&self) -> RenderLayer {
-        RenderLayer::Foreground
+        RenderLayer::Weather
     }
 
     fn is_active(&self, ctx: &FrameContext<'_>) -> bool {
@@ -202,8 +201,8 @@ impl AnimationSystem for SnowSystem {
     fn render(
         &mut self,
         renderer: &mut TerminalRenderer,
-        _ctx: &FrameContext<'_>,
+        ctx: &FrameContext<'_>,
     ) -> io::Result<()> {
-        SnowSystem::render(self, renderer)
+        SnowSystem::render(self, renderer, ctx.visual.snow)
     }
 }

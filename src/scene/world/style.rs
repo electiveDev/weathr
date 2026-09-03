@@ -37,86 +37,61 @@ impl WorldSceneStyle {
             Self {
                 roof: palette.accent_primary,
                 wood: palette.accent_secondary,
-                door: Color::Rgb {
-                    r: 139,
-                    g: 69,
-                    b: 19,
-                },
-                window: Color::Cyan,
-                trim: Color::DarkGrey,
-                grass_primary: palette.ground_day,
-                grass_secondary: Color::DarkGreen,
-                flower_colors: [Color::Magenta, Color::Red, Color::Cyan, Color::Yellow],
+                door: palette.soil,
+                window: palette.condition,
+                trim: palette.border,
+                grass_primary: ctx.visual.vegetation,
+                grass_secondary: palette.vegetation,
+                flower_colors: [
+                    palette.blossom,
+                    palette.fruit,
+                    palette.temperature,
+                    palette.text_primary,
+                ],
                 flower_chance: 5,
                 meadow_flower_chance: 0,
                 meadow_grass_chance: 0,
-                soil: Color::Rgb {
-                    r: 101,
-                    g: 67,
-                    b: 33,
-                },
-                tree_foliage: Color::DarkGreen,
+                soil: ctx.visual.soil,
+                tree_foliage: ctx.visual.tree,
                 tree_appearance: TreeAppearance::Full,
-                fruit_colors: [
-                    Color::Red,
-                    Color::Yellow,
-                    Color::Rgb {
-                        r: 210,
-                        g: 60,
-                        b: 35,
-                    },
-                ],
-                fence: Color::White,
-                mailbox: Color::Blue,
+                fruit_colors: [palette.fruit, palette.temperature, palette.condition],
+                fence: palette.text_primary,
+                mailbox: palette.wind,
             }
         } else {
             Self {
-                roof: Color::DarkMagenta,
-                wood: Color::Rgb {
-                    r: 100,
-                    g: 70,
-                    b: 50,
-                },
-                door: Color::Rgb {
-                    r: 80,
-                    g: 40,
-                    b: 10,
-                },
-                window: Color::Yellow,
-                trim: Color::DarkGrey,
-                grass_primary: palette.ground_night,
-                grass_secondary: Color::Rgb { r: 0, g: 50, b: 0 },
+                roof: palette.accent_primary,
+                wood: palette.accent_secondary,
+                door: palette.surface,
+                window: palette.temperature,
+                trim: palette.border,
+                grass_primary: ctx.visual.vegetation,
+                grass_secondary: palette.vegetation,
                 flower_colors: [
-                    Color::DarkMagenta,
-                    Color::DarkRed,
-                    Color::Blue,
-                    Color::DarkYellow,
+                    palette.blossom,
+                    palette.fruit,
+                    palette.wind,
+                    palette.temperature,
                 ],
                 flower_chance: 5,
                 meadow_flower_chance: 0,
                 meadow_grass_chance: 0,
-                soil: Color::Rgb {
-                    r: 60,
-                    g: 40,
-                    b: 20,
-                },
-                tree_foliage: Color::Rgb { r: 0, g: 50, b: 0 },
+                soil: ctx.visual.soil,
+                tree_foliage: ctx.visual.tree,
                 tree_appearance: TreeAppearance::Full,
-                fruit_colors: [
-                    Color::DarkRed,
-                    Color::DarkYellow,
-                    Color::Rgb {
-                        r: 130,
-                        g: 45,
-                        b: 25,
-                    },
-                ],
-                fence: Color::Grey,
-                mailbox: Color::DarkBlue,
+                fruit_colors: [Color::DarkRed, Color::DarkYellow, palette.condition],
+                fence: palette.text_muted,
+                mailbox: palette.wind,
             }
         };
 
         style.apply_season(ctx.season, ctx.conditions.sun.is_day);
+        if ctx.conditions.is_foggy {
+            style.grass_secondary = ctx.visual.fog;
+            style.tree_foliage = ctx.visual.fog;
+        } else if ctx.conditions.is_snowing {
+            style.soil = ctx.visual.soil;
+        }
         style
     }
 
@@ -331,6 +306,7 @@ impl WorldSceneStyle {
 mod tests {
     use super::*;
     use crate::scene::SceneContext;
+    use crate::theme::VisualPalette;
     use crate::theme::catalogue::DEFAULT_PALETTE;
     use crate::weather::WeatherConditions;
 
@@ -339,16 +315,20 @@ mod tests {
         let context = SceneContext {
             conditions: &conditions,
             palette: &DEFAULT_PALETTE,
+            visual: VisualPalette::default(),
             season,
         };
         WorldSceneStyle::resolve(&context)
     }
     fn style_for_time(season: Season, is_day: bool) -> WorldSceneStyle {
-        let mut conditions = WeatherConditions::default();
-        conditions.sun = crate::weather::types::CelestialEvents::from_bool(is_day);
+        let conditions = WeatherConditions {
+            sun: crate::weather::types::CelestialEvents::from_bool(is_day),
+            ..WeatherConditions::default()
+        };
         let context = SceneContext {
             conditions: &conditions,
             palette: &DEFAULT_PALETTE,
+            visual: VisualPalette::default(),
             season,
         };
         WorldSceneStyle::resolve(&context)

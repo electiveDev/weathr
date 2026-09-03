@@ -12,6 +12,7 @@ mod season {
     pub use weathr::season::Season;
 }
 mod theme;
+mod ui;
 mod weather;
 
 use clap::{CommandFactory, Parser};

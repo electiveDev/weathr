@@ -5,7 +5,6 @@ use crate::animation::{
 use crate::render::TerminalRenderer;
 use crate::weather::types::CelestialEvents;
 use chrono::{DateTime, NaiveDateTime, NaiveTime};
-use crossterm::style::Color;
 use rand::Rng;
 
 use std::io;
@@ -39,10 +38,6 @@ impl Animation for SunnyAnimation {
 
     fn frame_count(&self) -> usize {
         self.frames.len()
-    }
-
-    fn get_color(&self) -> Color {
-        Color::Yellow
     }
 }
 
@@ -130,7 +125,7 @@ impl AnimationSystem for SunSystem {
     }
 
     fn layer(&self) -> RenderLayer {
-        RenderLayer::Background
+        RenderLayer::Celestial
     }
 
     fn is_active(&self, ctx: &FrameContext<'_>) -> bool {
@@ -165,7 +160,7 @@ impl AnimationSystem for SunSystem {
         let default_y = if ctx.size.height > 20 { 3 } else { 2 };
         let y_offset = Self::resolved_sun_y(ctx, default_y);
         self.controller
-            .render_frame(renderer, &self.animation, y_offset)
+            .render_frame_colored(renderer, &self.animation, y_offset, ctx.visual.sun)
     }
 }
 
@@ -212,6 +207,8 @@ mod tests {
     use crate::animation::TerminalSize;
     use crate::app_state::AppState;
     use crate::config::LocationDisplay;
+    use crate::theme::VisualPalette;
+    use crate::ui::Rect;
     use crate::weather::types::CelestialEvents;
     use crate::weather::{
         WeatherCondition, WeatherConditions, WeatherData, WeatherLocation, WeatherUnits,
@@ -272,6 +269,8 @@ mod tests {
                 width: 80,
                 height: 24,
             },
+            scene_viewport: Rect::new(0, 0, 80, 24),
+            visual: VisualPalette::default(),
             horizon_y: 18,
             conditions: &conditions,
             state: &state,
@@ -314,6 +313,8 @@ mod tests {
                 width: 80,
                 height: 24,
             },
+            scene_viewport: Rect::new(0, 0, 80, 24),
+            visual: VisualPalette::default(),
             horizon_y: 18,
             conditions: &conditions,
             state: &state,

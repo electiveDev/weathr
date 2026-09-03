@@ -1,7 +1,5 @@
 use crate::animation::{AnimationSystem, FrameCommands, FrameContext, RenderLayer, TerminalSize};
 use crate::render::TerminalRenderer;
-use crossterm::style::Color;
-
 use rand::{Rng, RngExt};
 use std::io;
 
@@ -153,7 +151,11 @@ impl StarSystem {
         }
     }
 
-    pub fn render(&self, renderer: &mut TerminalRenderer) -> io::Result<()> {
+    pub fn render(
+        &self,
+        renderer: &mut TerminalRenderer,
+        palette: crate::theme::VisualPalette,
+    ) -> io::Result<()> {
         for star in &self.stars {
             let ch = if star.brightness > 0.8 {
                 '*'
@@ -163,9 +165,9 @@ impl StarSystem {
                 '.'
             };
             let color = if star.brightness > 0.6 {
-                Color::White
+                palette.text_primary
             } else {
-                Color::DarkGrey
+                palette.text_muted
             };
 
             renderer.render_char(star.x, star.y, ch, color)?;
@@ -181,7 +183,12 @@ impl StarSystem {
                     && head_y >= 0
                     && head_y < self.terminal_height as i16
                 {
-                    renderer.render_char(head_x as u16, head_y as u16, '*', Color::White)?;
+                    renderer.render_char(
+                        head_x as u16,
+                        head_y as u16,
+                        '*',
+                        palette.text_primary,
+                    )?;
                 }
 
                 for i in 1..star.length {
@@ -194,7 +201,12 @@ impl StarSystem {
                         && trail_y < self.terminal_height as i16
                     {
                         let ch = if i == 1 { '+' } else { '.' };
-                        renderer.render_char(trail_x as u16, trail_y as u16, ch, Color::White)?;
+                        renderer.render_char(
+                            trail_x as u16,
+                            trail_y as u16,
+                            ch,
+                            palette.text_primary,
+                        )?;
                     }
                 }
             }
@@ -210,7 +222,7 @@ impl AnimationSystem for StarSystem {
     }
 
     fn layer(&self) -> RenderLayer {
-        RenderLayer::Background
+        RenderLayer::Sky
     }
 
     fn is_active(&self, ctx: &FrameContext<'_>) -> bool {
@@ -233,8 +245,8 @@ impl AnimationSystem for StarSystem {
     fn render(
         &mut self,
         renderer: &mut TerminalRenderer,
-        _ctx: &FrameContext<'_>,
+        ctx: &FrameContext<'_>,
     ) -> io::Result<()> {
-        StarSystem::render(self, renderer)
+        StarSystem::render(self, renderer, ctx.visual)
     }
 }

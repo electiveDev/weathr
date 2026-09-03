@@ -40,7 +40,7 @@ impl MoonSystem {
         self.y = (terminal_height / 4).max(2);
     }
 
-    pub fn render(&self, renderer: &mut TerminalRenderer) -> io::Result<()> {
+    pub fn render(&self, renderer: &mut TerminalRenderer, color: Color) -> io::Result<()> {
         let step = (self.phase * 8.0).round() as usize % 8;
         let art = MOON_PHASES[step];
 
@@ -55,10 +55,10 @@ impl MoonSystem {
 
                 if ch == '~' {
                     // Opaque Moon Body (hides stars) - Render as space but overwrite what's there
-                    renderer.render_char(x, y, ' ', Color::White)?;
+                    renderer.render_char(x, y, ' ', color)?;
                 } else {
                     // Texture/Outline
-                    renderer.render_char(x, y, ch, Color::White)?;
+                    renderer.render_char(x, y, ch, color)?;
                 }
             }
         }
@@ -72,7 +72,7 @@ impl AnimationSystem for MoonSystem {
     }
 
     fn layer(&self) -> RenderLayer {
-        RenderLayer::Background
+        RenderLayer::Celestial
     }
 
     fn is_active(&self, ctx: &FrameContext<'_>) -> bool {
@@ -99,8 +99,8 @@ impl AnimationSystem for MoonSystem {
     fn render(
         &mut self,
         renderer: &mut TerminalRenderer,
-        _ctx: &FrameContext<'_>,
+        ctx: &FrameContext<'_>,
     ) -> io::Result<()> {
-        MoonSystem::render(self, renderer)
+        MoonSystem::render(self, renderer, ctx.visual.moon)
     }
 }

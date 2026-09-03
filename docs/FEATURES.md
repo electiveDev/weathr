@@ -19,7 +19,7 @@ The month mapping is local-time based. December, January, and February all map t
 
 ## Seasonal world design
 
-The world scene always contains the centered house and its ground, fence, and mailbox when they fit the terminal layout. A second pine tree is added on sufficiently wide terminals. The day/night palette is selected first; the season then adjusts the vegetation, tree silhouette, and ground styling.
+The world scene always contains the centered house, its ground, and fence when they fit the terminal layout. A second pine tree is added on sufficiently wide terminals. The day/night palette is selected first; the season then adjusts the vegetation, tree silhouette, and ground styling.
 
 - **Spring:** bright green grass, a green meadow floor with sparse flowers, frequent flowers, and a medium-sized blossoming tree.
 - **Summer:** saturated grass dominates the lower green meadow, with fewer distributed flowers, the largest full tree, and deterministic red/yellow fruit accents.
@@ -29,7 +29,7 @@ The world scene always contains the centered house and its ground, fence, and ma
 The seasonal world styling is separate from precipitation animations. For example, `--leaves` explicitly enables the falling-leaves foreground system; it is not silently enabled or disabled by the calendar season. Falling leaves are suppressed while rain, thunderstorms, or snow are active.
 
 The world uses a theme-driven palette whose final roles combine the selected theme with day/night,
-weather, and season. The house, ground, trees, fence, and mailbox are laid out inside a dedicated
+weather, and season. The warm house, ground, trees, and fence are laid out inside a dedicated
 scene viewport; weather particles and atmospheric animations are clipped to that viewport so they
 cannot overwrite the HUD or attribution row. The pond is not part of the fork's world composition.
 

@@ -24,10 +24,10 @@ pub struct WorldSceneStyle {
     pub meadow_grass_chance: u32,
     pub soil: Color,
     pub tree_foliage: Color,
+    pub tree_trunk: Color,
     pub tree_appearance: TreeAppearance,
     pub fruit_colors: [Color; 3],
     pub fence: Color,
-    pub mailbox: Color,
 }
 
 impl WorldSceneStyle {
@@ -38,8 +38,8 @@ impl WorldSceneStyle {
                 roof: palette.accent_primary,
                 wood: palette.accent_secondary,
                 door: palette.soil,
-                window: palette.condition,
-                trim: palette.border,
+                window: palette.temperature,
+                trim: palette.text_primary,
                 grass_primary: ctx.visual.vegetation,
                 grass_secondary: palette.vegetation,
                 flower_colors: [
@@ -53,18 +53,30 @@ impl WorldSceneStyle {
                 meadow_grass_chance: 0,
                 soil: ctx.visual.soil,
                 tree_foliage: ctx.visual.tree,
+                tree_trunk: Color::Rgb {
+                    r: 112,
+                    g: 71,
+                    b: 43,
+                },
                 tree_appearance: TreeAppearance::Full,
                 fruit_colors: [palette.fruit, palette.temperature, palette.condition],
                 fence: palette.text_primary,
-                mailbox: palette.accent_secondary,
             }
         } else {
             Self {
                 roof: palette.accent_primary,
-                wood: palette.accent_secondary,
-                door: palette.surface,
+                wood: Color::Rgb {
+                    r: 117,
+                    g: 88,
+                    b: 70,
+                },
+                door: Color::Rgb {
+                    r: 65,
+                    g: 45,
+                    b: 38,
+                },
                 window: palette.temperature,
-                trim: palette.border,
+                trim: palette.text_primary,
                 grass_primary: ctx.visual.vegetation,
                 grass_secondary: palette.vegetation,
                 flower_colors: [
@@ -78,10 +90,14 @@ impl WorldSceneStyle {
                 meadow_grass_chance: 0,
                 soil: ctx.visual.soil,
                 tree_foliage: ctx.visual.tree,
+                tree_trunk: Color::Rgb {
+                    r: 70,
+                    g: 46,
+                    b: 34,
+                },
                 tree_appearance: TreeAppearance::Full,
                 fruit_colors: [Color::DarkRed, Color::DarkYellow, palette.condition],
                 fence: palette.text_muted,
-                mailbox: palette.accent_secondary,
             }
         };
 
@@ -356,6 +372,11 @@ mod tests {
         assert_eq!(summer.meadow_flower_chance, 10);
         assert_eq!(summer.meadow_grass_chance, 60);
         assert!(summer.meadow_grass_chance > summer.meadow_flower_chance);
+        assert!(matches!(
+            summer.roof,
+            Color::Rgb { r, g, b } if r > g && r > b
+        ));
+        assert_eq!(summer.window, DEFAULT_PALETTE.temperature);
         assert_eq!(
             summer.soil,
             Color::Rgb {

@@ -23,9 +23,9 @@ pub const DEFAULT_PALETTE: Palette = Palette {
         b: 38,
     },
     accent_primary: Color::Rgb {
-        r: 38,
-        g: 89,
-        b: 103,
+        r: 178,
+        g: 54,
+        b: 47,
     },
     accent_secondary: Color::Rgb {
         r: 191,

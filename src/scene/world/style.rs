@@ -56,7 +56,7 @@ impl WorldSceneStyle {
                 tree_appearance: TreeAppearance::Full,
                 fruit_colors: [palette.fruit, palette.temperature, palette.condition],
                 fence: palette.text_primary,
-                mailbox: palette.wind,
+                mailbox: palette.accent_secondary,
             }
         } else {
             Self {
@@ -81,7 +81,7 @@ impl WorldSceneStyle {
                 tree_appearance: TreeAppearance::Full,
                 fruit_colors: [Color::DarkRed, Color::DarkYellow, palette.condition],
                 fence: palette.text_muted,
-                mailbox: palette.wind,
+                mailbox: palette.accent_secondary,
             }
         };
 

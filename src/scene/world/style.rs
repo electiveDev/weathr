@@ -51,7 +51,12 @@ impl WorldSceneStyle {
             }
         } else {
             Self {
-                roof: Color::DarkMagenta,
+                // Keep the original night warmth without turning the roof purple.
+                roof: Color::Rgb {
+                    r: 115,
+                    g: 48,
+                    b: 38,
+                },
                 wood: Color::Rgb {
                     r: 100,
                     g: 70,
@@ -402,6 +407,21 @@ mod tests {
                 b: 205
             }
         );
+    }
+
+    #[test]
+    fn night_house_uses_a_warm_red_roof() {
+        let night = style_for_time(Season::Summer, false);
+
+        assert_eq!(
+            night.roof,
+            Color::Rgb {
+                r: 115,
+                g: 48,
+                b: 38
+            }
+        );
+        assert_ne!(night.roof, Color::DarkMagenta);
     }
 
     #[test]

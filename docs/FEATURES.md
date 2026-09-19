@@ -19,7 +19,7 @@ The month mapping is local-time based. December, January, and February all map t
 
 ## Seasonal world design
 
-The world scene always contains the centered house, its ground, and fence when they fit the terminal layout. A second pine tree is added on sufficiently wide terminals. The house and tree silhouettes follow the original `Veirt/weathr` composition; the day/night palette is selected first, and the season changes the surrounding vegetation and ground colors.
+The world scene always contains the centered house, its ground, and fence when they fit the terminal layout. The house and tree silhouettes follow the original `Veirt/weathr` composition; the day/night palette is selected first, and the season changes the surrounding vegetation and ground colors.
 
 - **Spring:** bright green grass, a green meadow floor with sparse flowers, and frequent flowers.
 - **Summer:** saturated grass dominates the lower green meadow, with fewer distributed flowers.

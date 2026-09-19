@@ -5,7 +5,6 @@ use std::io;
 // These silhouettes intentionally match the original Veirt/weathr world scene.
 const TREE_ASCII: &str = include_str!("assets/tree.txt");
 const FENCE_ASCII: &str = include_str!("assets/fence.txt");
-const PINE_TREE_ASCII: &str = include_str!("assets/pine_tree.txt");
 
 pub struct Decorations;
 
@@ -25,10 +24,6 @@ impl Decorations {
     ) -> io::Result<()> {
         self.render_tree(renderer, layout, style)?;
         self.render_fence(renderer, layout, style)?;
-
-        if layout.width > 120 {
-            self.render_pine_tree(renderer, layout, style)?;
-        }
 
         Ok(())
     }
@@ -62,30 +57,6 @@ impl Decorations {
         let fence_y = layout.horizon_y.saturating_sub(line_count);
         render_art(renderer, FENCE_ASCII, fence_x, fence_y, style.fence)
     }
-
-    fn render_pine_tree(
-        &self,
-        renderer: &mut TerminalRenderer,
-        layout: &DecorationLayout,
-        style: &WorldSceneStyle,
-    ) -> io::Result<()> {
-        let pine_x = layout
-            .house_x
-            .saturating_add(layout.house_width)
-            .saturating_add(18);
-        if pine_x.saturating_add(10) >= layout.width {
-            return Ok(());
-        }
-        let line_count = PINE_TREE_ASCII.lines().count() as u16;
-        let pine_y = layout.horizon_y.saturating_sub(line_count);
-        render_art(
-            renderer,
-            PINE_TREE_ASCII,
-            pine_x,
-            pine_y,
-            style.tree_foliage,
-        )
-    }
 }
 
 fn render_art(
@@ -114,7 +85,5 @@ mod tests {
         assert_eq!(TREE_ASCII.lines().count(), 5);
         assert!(TREE_ASCII.contains("####"));
         assert!(TREE_ASCII.contains("_||_"));
-        assert_eq!(PINE_TREE_ASCII.lines().count(), 5);
-        assert!(PINE_TREE_ASCII.contains("*******"));
     }
 }
